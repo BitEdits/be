@@ -61,80 +61,81 @@ int str2int(const char* s, int min, int max, int def) {
     return x;
 }
 
-// O 0 0 = ESC0
-// [ 0 0 = ESC1
-// [ [ 0 = ESC2
-// [ 0 ~ = ESC3
-// [ 1 ~ = ESC4
-// [ 2 ~ = ESC5
-// [ 3 ~ = ESC6
-// [ 1 ^ = ESC7
-// [ 2 ^ = ESC8
-
-// ESC0:   A = KEY_UP
-//         B = KEY_DOWN
-//         C = KEY_RIGHT
-//         D = KEY_LEFT
-//         P = KEY_F1
-//         Q = KEY_F2
-//         R = KEY_F3
-//         w = KEY_F3
-//         y = KEY_F3
-//         S = KEY_F4
-//         x = KEY_F4
-//         t = KEY_F5
-//         v = KEY_F5
-//         u = KEY_F6
-//         l = KEY_F6
-//         q = KEY_F7
-//         s = KEY_F7
-//         r = KEY_F8
-//         p = KEY_F9
-//         n = KEY_F9
-
 int read_key() {
-    char c;
-    ssize_t nread;
-    while ((nread = read(STDIN_FILENO, &c, 1)) == 0);
-    if (nread == -1) return -1;
-    if (c == KEY_ESC) {
-        if (read(STDIN_FILENO, seq, 1) == 0) return KEY_ESC;
-        if (read(STDIN_FILENO, seq + 1, 1) == 0) return KEY_ESC;
-        if (seq[0] == '[') {
-            if (seq[1] >= '0' && seq[1] <= '9') {
-                if (read(STDIN_FILENO, seq + 2, 1) == 0) {
-                    return KEY_ESC;
+    int c = getchar();
+    if (c == 27) { // Esc або стрілки
+        int c2 = getchar();
+        if (c2 == '[') {
+            int c3 = getchar();
+            if (c3 == 'A') return KEY_UP;    // Up
+            if (c3 == 'B') return KEY_DOWN;  // Down
+            if (c3 == 'C') return KEY_RIGHT; // Right
+            if (c3 == 'D') return KEY_LEFT;  // Left
+            if (c3 == 'H') return KEY_HOME;  // Home
+            if (c3 == 'F') return KEY_END;   // End
+            if (c3 == '3' && getchar() == '~') return KEY_DELETE;
+            if (c3 == '5') { // PgUp
+                getchar(); // ~
+                return KEY_PGUP;
+            }
+            if (c3 == '6') { // PgDown
+                getchar(); // ~
+                return KEY_PGDOWN;
+            } else if (c3 == '1' && getchar() == ';') { // Ctrl/Shift modifiers
+                int c5 = getchar();
+                if (c5 == '5') { // Ctrl
+                    int c6 = getchar();
+                    if (c6 == 'D') return KEY_CTRL_LEFT;  // Ctrl+Left: \033[1;5D
+                    if (c6 == 'C') return KEY_CTRL_RIGHT; // Ctrl+Right: \033[1;5C
+                } else if (c5 == '2') { // Shift
+                    int c6 = getchar();
+                    if (c6 == 'D') return KEY_SHIFT_LEFT;  // Shift+Left: \033[1;2D
+                    if (c6 == 'C') return KEY_SHIFT_RIGHT; // Shift+Right: \033[1;2C
                 }
-                if (seq[2] == '~') {
-                    switch (seq[1]) {
-                        case '1': return KEY_HOME;
-                        case '3': return KEY_END;
-                        case '4': return KEY_DEL;
-                        case '5': return KEY_PAGEUP;
-                        case '6': return KEY_PAGEDOWN;
-                        case '7': return KEY_HOME;
-                        case '8': return KEY_END;
-                        case 'J': return KEY_PAGEDOWN;
-                    }
+            }
+            // Обробка F1-F10
+            if (c3 >= '1' && c3 <= '2') {
+                int c4 = getchar();
+                if (c3 == '1') {
+                    if (c4 == '1') { getchar(); return KEY_F1; }  // F1: \033[11~
+                    if (c4 == '2') { getchar(); return KEY_F2; }  // F2: \033[12~
+                    if (c4 == '3') { getchar(); return KEY_F3; }  // F3: \033[13~
+                    if (c4 == '4') { getchar(); return KEY_F4; }  // F4: \033[14~
+                    if (c4 == '5') { getchar(); return KEY_F5; }  // F5: \033[15~
+                    if (c4 == '7') { getchar(); return KEY_F6; }  // F6: \033[17~
+                    if (c4 == '8') { getchar(); return KEY_F7; }  // F7: \033[18~
+                    if (c4 == '9') { getchar(); return KEY_F8; }  // F8: \033[19~
+                } else if (c3 == '2') {
+                    if (c4 == '0') { getchar(); return KEY_F9; }  // F9: \033[20~
+                    if (c4 == '1') { getchar(); return KEY_F10; } // F10: \033[21~
+                    if (c4 == '~') { return KEY_INSERT; } // F10: \033[21~
                 }
             }
-            switch (seq[1]) {
-                case 'A': return KEY_UP;
-                case 'B': return KEY_DOWN;
-                case 'C': return KEY_RIGHT;
-                case 'D': return KEY_LEFT;
-                case 'H': return KEY_HOME;
-                case 'F': return KEY_END;
-            }
-        } else if (seq[0] == 'O') {
-            switch (seq[1]) {
-                case 'H': return KEY_HOME;
-                case 'F': return KEY_END;
-            }
+        } else if (c2 == 'O') {
+            int c3 = getchar();
+            if (c3 == 'P') return KEY_F1;   // F1: \033OP
+            if (c3 == 'Q') return KEY_F2;   // F2: \033OQ
+            if (c3 == 'R') return KEY_F3;   // F3: \033OR
+            if (c3 == 'S') return KEY_F4;   // F4: \033OS
+        } else if (c2 >= 'A' && c2 <= 'Z') { // ESC + Shift
+            int c3 = getchar();
+            if (c2 == 'E' && c3 == '\n') return KEY_ESC_SHIFT_ENTER; // ESC+Shift+Enter
+            if (c2 == '[') return KEY_ESC_SHIFT_LEFT_BRACKET; // ESC+Shift+[
+            if (c2 == ']') return KEY_ESC_SHIFT_RIGHT_BRACKET; // ESC+Shift+]
+        } else if (c2 == 27) {
+            return KEY_ESC; // Esc
+        } else {
+            ungetc(c2, stdin); // Повернути символ назад
+            return KEY_ESC;
         }
-    } else switch (c) {
-        case KEY_BACKSPACE:
-        case KEY_CTRL_H: return KEY_BACKSPACE;
+    } else if (c == '\n') {
+        return KEY_ENTER;
+    } else if (c == 9) {
+        return KEY_TAB;
+    } else if (c == 15) {
+        return KEY_CTRL_O;
+    } else if (c == 127) {
+        return KEY_BACKSPACE;
     }
     return c;
 }
@@ -168,12 +169,10 @@ void enable_raw_mode() {
     tcgetattr(STDIN_FILENO, &orig_termios);
 
     struct termios raw = orig_termios;
-    raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
-    raw.c_oflag &= ~(OPOST);
-    raw.c_cflag |= (CS8);
-    raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
-    raw.c_cc[VMIN] = 0;
-    raw.c_cc[VTIME] = 1;
+    raw.c_iflag &= ~(IXON);
+    raw.c_lflag &= ~(ECHO | ICANON | IEXTEN);
+    raw.c_cc[VMIN] = 1;
+    raw.c_cc[VTIME] = 0;
 
     if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) != 0) {
         perror("Unable to set terminal to raw mode");

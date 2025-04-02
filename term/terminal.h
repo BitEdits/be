@@ -19,16 +19,38 @@ enum key_codes {
     KEY_ESC       = 0x1b, // ESC, for things like keys up, down, left, right, delete, ...
     KEY_ENTER     = 0x0d,
     KEY_BACKSPACE = 0x7f,
-
-    KEY_UP      = 1000, // [A
-    KEY_DOWN,           // [B
-    KEY_RIGHT,          // [C
-    KEY_LEFT,           // [D
-    KEY_DEL,            // . = 1b, [ = 5b, 3 = 33, ~ = 7e,
-    KEY_HOME,           // [H
-    KEY_END,            // [F
-    KEY_PAGEUP,         // ??
-    KEY_PAGEDOWN,       // ??
+    KEY_TAB       = 0x09,
+    KEY_CTRL_O    = 1000,
+    KEY_INSERT,
+    KEY_DELETE,
+    KEY_F1,
+    KEY_F2,
+    KEY_F3,
+    KEY_F4,
+    KEY_F5,
+    KEY_F6,
+    KEY_F7,
+    KEY_F8,
+    KEY_F9,
+    KEY_F10,
+    KEY_UP,
+    KEY_DOWN,
+    KEY_RIGHT,
+    KEY_LEFT,
+    KEY_DEL,
+    KEY_HOME,
+    KEY_END,
+    KEY_PGUP,
+    KEY_PGDOWN,
+    KEY_CTRL_LEFT,
+    KEY_CTRL_RIGHT,
+    KEY_CTRL_ENTER,
+    KEY_SHIFT_LEFT,
+    KEY_SHIFT_RIGHT,
+    KEY_SHIFT_ENTER,
+    KEY_ESC_SHIFT_ENTER,
+    KEY_ESC_SHIFT_LEFT_BRACKET,
+    KEY_ESC_SHIFT_RIGHT_BRACKET
 };
 
 enum parse_errors {

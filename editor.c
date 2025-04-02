@@ -300,7 +300,7 @@ void editor_render_header(struct editor* e, struct charbuf* b) {
     unsigned char active_byte = e->contents[current_offset];
     int arch_select = e->arch < 0 ? 0 : (e->arch > 9 ? 0 : e->arch);
     banlen = snprintf(banner, sizeof(banner),
-           "\x1b[1;33m\x1b[44m▄ BE \x1b[1;33m\x1b[45m %12s [%03i][%s][%02x][%016x] Size: %012iB    ",
+           "\x1b[1;33m\x1b[33;44m▄\x1b[48;2;255;105;180m\x1b[1;37m BE \x1b[90;106m %12s [%03i][%s][%02x][%016x] Size: %012iB    ",
            arch[arch_select],
            e->seg_size, (e->view == VIEW_ASM ? "ASM" : "HEX"), active_byte,
            current_offset, e->content_length);
@@ -626,6 +626,7 @@ void editor_process_keypress(struct editor* e) {
     switch (c) {
         case KEY_ESC:    editor_setmode(e, MODE_NORMAL); return;
         case KEY_CTRL_Q: exit(0); return;
+        case KEY_F3: exit(0); return;
         case KEY_CTRL_S: editor_writefile(e); return;
     }
 
@@ -654,9 +655,9 @@ void editor_process_keypress(struct editor* e) {
         case KEY_HOME: e->cursor_x = 1; return;
         case KEY_END:  editor_move_cursor(e, KEY_RIGHT, e->octets_per_line - e->cursor_x); return;
         case KEY_CTRL_U:
-        case KEY_PAGEUP:   editor_scroll(e, -(e->screen_rows) + 2); return;
+        case KEY_PGUP:   editor_scroll(e, -(e->screen_rows) + 2); return;
         case KEY_CTRL_D:
-        case KEY_PAGEDOWN: editor_scroll(e, e->screen_rows - 2); return;
+        case KEY_PGDOWN: editor_scroll(e, e->screen_rows - 2); return;
         }
     }
 }
