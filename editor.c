@@ -309,7 +309,7 @@ void editor_render_header(struct editor* e, struct charbuf* b) {
     unsigned int offset_at_cursor = editor_offset_at_cursor(e);
     unsigned char val = e->contents[offset_at_cursor];
     int percentage = (float)(offset_at_cursor + 1) / ((float)e->content_length) * 100;
-    charbuf_appendf(b, "\x1b[1;33m\x1b[46m");
+    charbuf_appendf(b, "\x1b[1;37m\x1b[46m");
     int width = e->screen_cols - (16+32+64) - 38;
     char *format = "% 36d%% ";
     if (e->view == VIEW_HEX) { width = e->screen_cols - (16 + (24 * 4)) - 4; format = "% 36d%% "; }
