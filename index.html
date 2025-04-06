@@ -1,0 +1,155 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="" />
+    <meta name="author" content="Maxim Sokhatsky" />
+    <title>BE: Binary Editor</title>
+    <link rel="stylesheet" href="https://n2o.dev/blank.css" />
+    <link rel="stylesheet" href="https://tonpa.guru/journal.css" />
+</head>
+<body>
+<main>
+    <section>
+
+        <h3>BE: Binary Editor</h3>
+
+        <h4>Анотація</h4>
+
+        <center><a href="https://github.com/BitEdits/be/"><img src="img/be.png" width=150 lt="BE"></a></center>
+        <br>
+
+        <p>Є цілий клас бінарних редакторів, серед яких 010 Editor, beye, hiew, Binary Ninja, WinHex,
+           що мають окрім HEX режиму — режим дизасемблера. Такі програми зручно використовати
+           для дослідження ROM файлів, прошивок дронів, GPU карточок, телефонів, BIOS, у якості систем накладання патчів,
+           створення map-файлу бінарного образу за допомогою текстових анотацій, а також для
+           візуального аналізу об`єктного коду. Фактично це objdump, але з можливістю
+           зберігання та візуального редагування.</p>
+
+        <p>У цій статті презентується концепт сучасного нового представника цієї когорти
+           редакторів — BE (Binary Editor) InfoSec Hex Editor, який має наступні характеристики:</p>
+
+        <p>— Без залежностей, потрібно тільки C99/POSIX які є стандартом<br>
+           — Без використання ncurses та S-Lang, тільки termios<br>
+           — Модальність редагування HEX з варіативною довижиною рядка<br>
+           — Модальність редагування ASM об`єктного коду з відображенням дизасемблера<br>
+           — 16, 32, 64 бітні режими процесора<br>
+           — Маркування редагованих байтів перед збереженням<br>
+           — Анотація регіонів<br>
+           — Пошук байтової послідовності<br>
+           — Побітове редагування<br>
+           — Редагування секторів дисків (LBA)<br>
+           — Створення та накладення патчів з анотованих регіонів<br>
+           — Повна підтримка x86 архітектури та її розширень у дизасемблері<br>
+           — vi-подібна система команд та режимів<br>
+           — Компактне ядро з підтримкою Maс та Linux<br>
+           — Підтримка контейнерів обʼєктного коду ELF, Mach-O, PE/COFF<br>
+           — Перша лінія дизасемблерів: EM64T, RISC-V, AArch64<br>
+           — Друга лінія дизасемблерів: M68K, PowerPC, MIPS, SuperH-4<br>
+           — Третя лінія дизасемблерів: PDP-11, 8080/8085/Z80/MSX, 6502<br>
+           — Четверта лінія дизасемблерів: CLR, JVM, BEAM, EFI Byte Code<br>
+        </p>
+
+        <h4>Параметри</h4>
+
+        <p>Цей редактор можна також використовувати у якості вправи яка може замінити
+           написання консольних ігор типу Тетріса, Ксонікса, Арканоїда. Головним чином
+           це сцена яка обмежена адресним простором файлу, а дійство вібувається
+           у вікні терміналу, два рядки якого виділені під титул та статуси. Так як
+           сучасні процесори використовують 64-бітний обʼєктний код, то мінімальну ширину терміналу
+           для комфорного використання визначено у 120 колонок, це 24-байти (192-біти) на рядок.</p>
+
+        <figure><code>$ ./be
+Error: filename is expected.
+usage: be [-vhdboa] <filename>
+
+Options:
+    -v           Get version information
+    -h           Print usage info and exits
+    -d           Launch ASM view by default
+    -b bitness   CPU Bitness
+    -a arch      1:EM64T, 2:ARM64, 3:RISC-V, 4:PPC, 5:SH-4, 6:M68K, 7:MIPS, 8:PDP-11
+    -o octets    Octets per screen for HEX view
+</code></figure>
+
+        <p>У якості стартер пака використано шістнадцятковий
+           редактор <a href="https://github.com/krpors/hx">HX</a> Кевіна Порса та його система команд.
+           У якості бібіліотеки дизасемблера використаний дизасемблер
+           з дистрибутива <a href="https://github.com/netwide-assembler/nasm">NASM</a>.</p>
+
+        <h4>Верхній рядок</h4>
+
+        <p>У верхньому рядку зображається логотип програми, назва процесору на якому запущено програму,
+           бітність обʼєктного коду, режим дизасемблера чи шістнадцятковий, адреса курсору у файлі,
+           розмір файлу, та відношення поточного курсору до розміру файлу.</p>
+
+        <h4>Шістнадцяткова модальність</h4>
+
+        <p>У шістнадцятковій модальності дозволяється робити PAGE UP та PAGE DOWN,
+           а також робити навігацію в межах вікна.</p>
+
+        <figure><img src="https://user-images.githubusercontent.com/144776/172079707-34d042b1-c2a8-49ed-88b0-3e21d7569106.png"></figure>
+
+        <h4>Модальність дизасемблера</h4>
+
+        <p>У модальності дизасемблера можна здійснювати навігацію лише в межах вікна. При поверненні в шістнадцятковий режим,
+        зберігається позиція курсору яка була там до переходу в режим дизасемблера.</p>
+
+        <figure><img src="https://user-images.githubusercontent.com/144776/172079654-9380b592-ff6d-4f51-b0b4-9837ddc376ab.png"></figure>
+
+        <h4>Режим команд</h4>
+
+        <p>Режим команд нагадує vi, дозволяє зробити перехід на певну позицію в файлі,
+        та виставити бітність процесорра та ширину рядка для дампу, а також шукати
+        бінарну послідовність.
+
+        <figure><code>:0x1000
+:w
+:q!
+:help
+:set octets=16
+:set bitness=32
+/F0 A1 20
+</code></figure>
+
+        <h4>Режими редагування</h4>
+
+        <p>Існує 2 режими радагування які сумісні з редактором HX: INSERT та REPLACE,
+           у HEX модальності доступна також можливість редагування ASCII.
+           Для переходу в ці режими використовуються наступні літери:</p>
+
+        <figure><code>[i] INSERT
+[I] INSERT ASCII
+[r] REPLACE
+[R] REPLACE ASCII</code></figure>
+
+        <p>Для зміни бітності процесора використовуються наступні літери:</p>
+
+        <figure><code>[2] 16-bit
+[3] 32-bit
+[4] 64-bit</code></figure>
+
+        <p>Для зміни модальностей використовуються наступні літери:</p>
+
+        <figure><code>[d] Disassembler
+[x] Hex</code></figure>
+
+      <h4>Код</h4>
+
+      <p>Репозиторій проекту <a href="https://github.com/BitEdits/be">github.com/BitEdits/be</a>
+         опубліковано під <a href="https://5ht.co/license">DHARMA</a> ліценцією, яка
+         забороняє використання BE InfoSec Editor для росіян та всіх хто з ними
+         повʼязаний. Для всіх інших це не відрізняється від ISC ліцензії.</P>
+
+   <br><center>&dot;</center>
+
+   <div id="utterances" class="utterances" > </div>
+   <script src="https://utteranc.es/client.js" repo="5HT/tonpa.guru"
+           issue-number="26" theme="github-light" crossorigin="anonymous" async> </script>
+
+</section>
+</main>
+<footer>Максим Сохацький, Synrc Research</footer>
+</body>
+</html>
