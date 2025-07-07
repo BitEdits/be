@@ -1,0 +1,40 @@
+# Baseline
+ADC rRd, rRn, rRm         28-31:0xE,27-25:0x2,24-21:0x0,20-16:0x0,15-12:Rd,11-0:0x0    Add with Carry
+ADD rRd, rRn, rRm         28-31:0xE,27-25:0x4,24-21:0x0,20-16:0x0,15-12:Rd,11-0:0x0    Add
+AND rRd, rRn, rRm         28-31:0xE,27-25:0x0,24-21:0x0,20-16:0x0,15-12:Rd,11-0:0x0    Logical AND
+ASR rRd, rRm, #imm        28-31:0xE,27-25:0x0,24-21:0x6,20-16:0x1,15-12:Rd,11-7:0x0,6-0:imm    Arithmetic Shift Right
+BIC rRd, rRn, rRm         28-31:0xE,27-25:0x0,24-21:0xE,20-16:0x0,15-12:Rd,11-0:0x0    Bit Clear
+CMN rRn, rRm              28-31:0xE,27-25:0x1,24-21:0xB,20-16:0x0,15-12:Rn,11-0:0x0    Compare Negative
+CMP rRn, rRm              28-31:0xE,27-25:0x1,24-21:0xA,20-16:0x0,15-12:Rn,11-0:0x0    Compare
+EOR rRd, rRn, rRm         28-31:0xE,27-25:0x2,24-21:0x0,20-16:0x0,15-12:Rd,11-0:0x0    Exclusive OR
+LSL rRd, rRm, #imm        28-31:0xE,27-25:0x0,24-21:0x6,20-16:0x0,15-12:Rd,11-7:0x0,6-0:imm    Logical Shift Left
+LSR rRd, rRm, #imm        28-31:0xE,27-25:0x0,24-21:0x6,20-16:0x2,15-12:Rd,11-7:0x0,6-0:imm    Logical Shift Right
+MOV rRd, rRm              28-31:0xE,27-25:0x1,24-21:0xA,20-16:0x0,15-12:Rd,11-0:0x0    Move
+MUL rRd, rRm, rRs         28-31:0xE,27-25:0x0,24-21:0x9,20-16:0x0,15-12:Rd,11-8:0x0,7-4:Rs,3-0:Rm    Multiply
+MVN rRd, rRm              28-31:0xE,27-25:0x1,24-21:0xE,20-16:0x0,15-12:Rd,11-0:0x0    Move Not
+ORR rRd, rRn, rRm         28-31:0xE,27-25:0xC,24-21:0x0,20-16:0x0,15-12:Rd,11-0:0x0    Logical OR
+ROR rRd, rRm, #imm        28-31:0xE,27-25:0x0,24-21:0x6,20-16:0x3,15-12:Rd,11-7:0x0,6-0:imm    Rotate Right
+RSB rRd, rRn, rRm         28-31:0xE,27-25:0x6,24-21:0x0,20-16:0x0,15-12:Rd,11-0:0x0    Reverse Subtract
+SBC rRd, rRn, rRm         28-31:0xE,27-25:0xE,24-21:0x0,20-16:0x0,15-12:Rd,11-0:0x0    Subtract with Carry
+SUB rRd, rRn, rRm         28-31:0xE,27-25:0x4,24-21:0x0,20-16:0x0,15-12:Rd,11-0:0x0    Subtract
+TEQ rRn, rRm              28-31:0xE,27-25:0x1,24-21:0xB,20-16:0x1,15-12:Rn,11-0:0x0    Test Equivalence
+TST rRn, rRm              28-31:0xE,27-25:0x1,24-21:0xB,20-16:0x0,15-12:Rn,11-0:0x0    Test
+B label                   28-31:0xA,27-25:0x1,24-0:label    Branch
+BL label                  28-31:0xB,27-25:0x1,24-0:label    Branch with Link
+BX rRm                    28-31:0xE,27-25:0x1,24-21:0x2,20-16:0x0,15-12:0xF,11-8:0x0,7-4:0x1,3-0:Rm    Branch Exchange
+LDM rRn!, {rList}         28-31:0xE,27-25:0x4,24-21:0xB,20-16:0x0,15-12:Rn,11-0:rList    Load Multiple
+STM rRn!, {rList}         28-31:0xE,27-25:0x4,24-21:0xA,20-16:0x0,15-12:Rn,11-0:rList    Store Multiple
+LDR rRd, [rRn, #imm]      28-31:0xE,27-26:0x1,25-21:0x0,20-16:0x0,15-12:Rd,11-0:imm    Load Register
+STR rRd, [rRn, #imm]      28-31:0xE,27-26:0x1,25-21:0x0,20-16:0x0,15-12:Rd,11-0:imm    Store Register
+
+# Full
+CDP pCp, coproc_op, crCd, crCn, crCm, #imm  28-31:0xF,27-24:0x0,23-20:Cp,19-16:op1,15-12:Cd,11-8:Cn,7-5:op2,4-0:Cm    Coprocessor Data Operation
+LDC pCp, crCd, [rRn, #imm]  28-31:0xF,27-24:0x1,23-20:Cp,19-16:0x0,15-12:Rn,11-0:imm    Load Coprocessor
+MCR pCp, #imm, rRd, crCn, crCm, #imm  28-31:0xE,27-24:0x0,23-20:Cp,19-16:op1,15-12:Rd,11-8:Cn,7-5:op2,4-0:Cm    Move to Coprocessor from ARM Register
+MRC pCp, #imm, rRd, crCn, crCm, #imm  28-31:0xE,27-24:0x1,23-20:Cp,19-16:op1,15-12:Rd,11-8:Cn,7-5:op2,4-0:Cm    Move to ARM Register from Coprocessor
+PLD [rRn, #imm]           28-31:0xF,27-24:0x5,23-20:0x0,19-16:0x0,15-12:Rn,11-0:imm    Preload Data
+STC pCp, crCd, [rRn, #imm]  28-31:0xF,27-24:0x0,23-20:Cp,19-16:0x0,15-12:Rn,11-0:imm    Store Coprocessor
+SWI #imm                  28-31:0xF,27-24:0xF,23-0:imm    Software Interrupt
+SWP rRd, rRm, [rRn]       28-31:0xE,27-25:0x1,24-21:0x9,20-16:0x0,15-12:Rd,11-0:Rm    Swap
+UDF #imm                  28-31:0xF,27-25:0x7,24-0:imm    Undefined Instruction
+UMULL rRdLo, rRdHi, rRm, rRs  28-31:0xE,27-25:0x0,24-21:0x8,20-16:0x4,15-12:RdLo,11-8:RdHi,7-4:Rs,3-0:Rm    Unsigned Multiply Long
