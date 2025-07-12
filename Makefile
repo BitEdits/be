@@ -9,6 +9,7 @@ objects := be.o editor.o \
 	arch/arm/bits.o arch/arm/strext.o \
 	arch/arm/DataProcessingFloatingPoint.o arch/arm/DataProcessingRegister.o \
 	arch/arm/armadillo.o arch/arm/instruction.o arch/arm/utils.o \
+	arch/armv7/armv7.o \
 	arch/riscv/riscv-disas.o \
 	arch/ppc/ppc_disasm.o \
 	arch/m68k/dis68k.o \
