@@ -20,6 +20,7 @@
 #include <malloc.h>
 #include <stdio.h>
 #include <string.h>
+#include "../../editor.h"
 #include "armv7.h"
 
 #if defined _MSC_VER
@@ -3593,8 +3594,8 @@ bool disasm_buffer(ARMSTATE *state, const uint8_t *buffer, size_t buffersize,
     if (state->symbols[i].mode != ARMMODE_UNKNOWN)
       mode = state->symbols[i].mode;
   }
-  if (mode == ARMMODE_UNKNOWN)
-    mode = ARMMODE_THUMB; /* no mode given, and no mode on symbols -> make arbitrary choice */
+
+  if (mode == ARMMODE_UNKNOWN) mode = ARMMODE_THUMB;
 
   uint32_t start_address = state->address;  /* address pertaining to the start of the buffer */
   const uint8_t *opc = buffer;
@@ -3674,9 +3675,10 @@ static bool disasm_callback(uint32_t address, const char *text, void *outbuf)
 
 char *decodeARM32(long unsigned int start, char *outbuf, int *lendis, long unsigned int out)
 {
+    struct editor *e = editor();
     disasm_init(&arm, 0);
     disasm_address(&arm, start);
-    disasm_buffer(&arm, start, 4, ARMMODE_THUMB, disasm_callback, outbuf);
+    disasm_buffer(&arm, start, 4, e->seg_size < 32 ? ARMMODE_THUMB : ARMMODE_ARM, disasm_callback, outbuf);
     *lendis = arm.size;
     disasm_cleanup(&arm);
 }
