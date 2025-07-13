@@ -16,7 +16,8 @@
 #include "../editor.h"
 
 #include "../arch/x86/disasm.h"
-#include "../arch/arm/armadillo.h"
+#include "../arch/arm64/armadillo.h"
+#include "../arch/arm32/armv7.h"
 #include "../arch/riscv/riscv-disas.h"
 #include "../arch/ppc/ppc_disasm.h"
 #include "../arch/mips/mips.h"

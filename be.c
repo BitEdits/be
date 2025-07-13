@@ -32,7 +32,7 @@ static void print_help(const char* explanation) {
         "    -h           Print usage info and exits\n"
         "    -d           Launch ASM view by default\n"
         "    -b bitness   CPU Bitness\n"
-        "    -a arch      1:EM64T, 2:ARM64, 3:RISC-V, 4:PPC, 5:SH-4, 6:M68K, 7:MIPS, 8:PDP-11, 9:nVidia\n"
+        "    -a arch      1:EM64T, 2:ARM, 3:RISC-V, 4:PPC, 5:SH-4, 6:M68K, 7:MIPS, 8:PDP-11, 9:nVidia\n"
         "    -o octets    Octets per screen for HEX view\n"
         "\n"
         "Report bugs to <be@5ht.co>\n", explanation);

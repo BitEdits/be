@@ -5,11 +5,11 @@ objects := be.o editor.o \
 	arch/x86/iflag.o arch/x86/sync.o arch/x86/disp8.o arch/x86/nctype.o arch/x86/readnum.o  \
 	arch/x86/common.o arch/x86/alloc.o arch/x86/string.o \
 	arch/x86/warnings.o arch/x86/error.o arch/x86/ver.o \
-	arch/arm/BranchExcSys.o arch/arm/DataProcessingImmediate.o arch/arm/LoadsAndStores.o \
-	arch/arm/bits.o arch/arm/strext.o \
-	arch/arm/DataProcessingFloatingPoint.o arch/arm/DataProcessingRegister.o \
-	arch/arm/armadillo.o arch/arm/instruction.o arch/arm/utils.o \
-	arch/armv7/armv7.o \
+	arch/arm64/BranchExcSys.o arch/arm64/DataProcessingImmediate.o arch/arm64/LoadsAndStores.o \
+	arch/arm64/bits.o arch/arm64/strext.o \
+	arch/arm64/DataProcessingFloatingPoint.o arch/arm64/DataProcessingRegister.o \
+	arch/arm64/armadillo.o arch/arm64/instruction.o arch/arm64/utils.o \
+	arch/arm32/armv7.o \
 	arch/riscv/riscv-disas.o \
 	arch/ppc/ppc_disasm.o \
 	arch/m68k/dis68k.o \
