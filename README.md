@@ -16,7 +16,7 @@ Architectures
 -------------
 
 * EM64T: SSE5, KNI, AVX-512, AES, AMX, TSX, MPX, FMA, VNNI, GFNI, SGX, CET, PKU
-* AArch32: v6-A, V6-M, v7-A, v7-M, v8-M
+* AArch32: v6, V6-M, v7-A, v7-M, v8-M
 * AArch64: v8-A, NEON, SVE, SME
 * RISC-V: RV32, RV64, RV128
 * PowerPC: POWER, Cell/BE (Sony PS3)
