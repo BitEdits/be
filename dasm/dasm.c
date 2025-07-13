@@ -98,6 +98,12 @@ int offset_at_cursor_dasm(struct editor* e) {
     return offset;
 }
 
+char *decodeARM(unsigned long int start, char *outbuf, int *lendis, unsigned long int offset) {
+    struct editor *e = editor();
+   if (e->seg_size < 64) decodeARM32 (start, outbuf, lendis, offset);
+   else decodeARM64 (start, outbuf, lendis, offset);
+}
+
 char *decode(unsigned long int start, char *outbuf, int *lendis, unsigned long int offset)
 {
     struct editor *e = editor();

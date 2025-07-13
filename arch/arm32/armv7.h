@@ -21,6 +21,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+
 typedef struct ARMSYMBOL {
   const char *name;   /**< symbol name, but may be NULL if unknown */
   uint32_t address;
@@ -70,29 +71,30 @@ typedef struct {
 #define DISASM_INSTR    0x0002  /**< prefix encoded values (hex) to the decoded instructions */
 #define DISASM_COMMENT  0x0004  /**< for immediate values or symbols, add value/string or name in a comment */
 
-void disasm_init(ARMSTATE *state, int flags);
-void disasm_cleanup(ARMSTATE *state);
-
-void disasm_clear_codepool(ARMSTATE *state);
-void disasm_compact_codepool(ARMSTATE *state, uint32_t address, uint32_t size);
-
 enum {
   ARMMODE_UNKNOWN,      /**< unknown mode for the symbol */
   ARMMODE_ARM,          /**< this symbol refers to code in ARM mode (function) */
   ARMMODE_THUMB,        /**< this symbol refers to code in Thumb mode (function) */
   ARMMODE_DATA,         /**< this symbol refers to a data object */
 };
+
+typedef bool (*DISASM_CALLBACK)(uint32_t address, const char *text, void *user);
+
+extern ARMSTATE arm;
+
+void disasm_init(ARMSTATE *state, int flags);
+void disasm_cleanup(ARMSTATE *state);
+void disasm_clear_codepool(ARMSTATE *state);
+void disasm_compact_codepool(ARMSTATE *state, uint32_t address, uint32_t size);
 void disasm_symbol(ARMSTATE *state, const char *name, uint32_t address, int mode);
 void disasm_address(ARMSTATE *state, uint32_t address);
-
 bool disasm_thumb(ARMSTATE *state, uint16_t hw, uint16_t hw2);
 bool disasm_arm(ARMSTATE *state, uint32_t w);
 const char *disasm_result(ARMSTATE *state, int *size);
-
-typedef bool (*DISASM_CALLBACK)(uint32_t address, const char *text, void *user);
-bool disasm_buffer(ARMSTATE *state, const uint8_t *buffer, size_t buffersize,
-                   int mode, DISASM_CALLBACK callback, void *user);
+bool disasm_buffer(ARMSTATE *state, const uint8_t *buffer, size_t buffersize, int mode, DISASM_CALLBACK callback, void *user);
 bool disasm_literals(ARMSTATE *state, const uint8_t *block, size_t blocksize, uint32_t address);
+
+char *decodeARM32(long unsigned int start, char *outbuf, int *outlen, long unsigned int offset0);
 
 #endif /* _ARMDISASM_H */
 

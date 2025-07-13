@@ -11,8 +11,11 @@
 #include "editor.h"
 #include "term/terminal.h"
 #include "dasm/dasm.h"
+#include "arch/arm32/armv7.h"
 
 volatile sig_atomic_t resizeflag;
+
+ARMSTATE arm;
 
 static void editor_exit() {
     struct editor* e = editor();
@@ -94,6 +97,7 @@ int main(int argc, char* argv[]) {
     e->arch = arch;
     editor_setview(e, view ? VIEW_ASM : VIEW_HEX);
     nasm_init(e);
+    disasm_init(&arm, 0);
 
     while (true) {
         editor_refresh_screen(e);

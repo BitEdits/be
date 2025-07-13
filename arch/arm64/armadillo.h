@@ -6,6 +6,6 @@
 
 int ArmadilloDisassemble(unsigned int opcode, unsigned long PC, struct ad_insn **out);
 int ArmadilloDone(struct ad_insn **insn);
-char *decodeARM(unsigned long int start, char *outbuf, int *outlen, unsigned long int offset0);
+char *decodeARM64(unsigned long int start, char *outbuf, int *outlen, unsigned long int offset0);
 
 #endif

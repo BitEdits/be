@@ -3665,3 +3665,18 @@ bool disasm_buffer(ARMSTATE *state, const uint8_t *buffer, size_t buffersize,
   return true;
 }
 
+static bool disasm_callback(uint32_t address, const char *text, void *outbuf)
+{
+  disasm_clear_codepool(&arm);
+  sprintf(outbuf, "%s", text);
+  return true;
+}
+
+char *decodeARM32(long unsigned int start, char *outbuf, int *lendis, long unsigned int out)
+{
+    disasm_init(&arm, 0);
+    disasm_address(&arm, start);
+    disasm_buffer(&arm, start, 4, ARMMODE_THUMB, disasm_callback, outbuf);
+    *lendis = arm.size;
+    disasm_cleanup(&arm);
+}

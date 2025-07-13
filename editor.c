@@ -288,7 +288,7 @@ void editor_render_header(struct editor* e, struct charbuf* b) {
     char model[] = "";
     char arch[10][8] = { "Unknown\0",
                          "  EM64T\0",
-                         "AArch64\0",
+                             "ARM\0",
                          " RISC-V\0",
                          "PowerPC\0",
                          " SuperH\0",
