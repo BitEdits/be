@@ -39,16 +39,18 @@ static void testarm(ARMSTATE *state, uint32_t w, const char *match)
   assert(state->size == 4 && strcmp(state->text, match) == 0);
 }
 
+
+ARMSTATE arm;
+
 static bool disasm_callback(uint32_t address, const char *text, void *user)
 {
+  disasm_clear_codepool(&arm);
   printf("%s\n", text);
   return true;
 }
 
 int main(int argc, char *argv[])
 {
-  ARMSTATE arm;
-
   if (argc > 1) {
     FILE *fp = fopen(argv[1], "rb");
     if (fp) {
@@ -58,7 +60,7 @@ int main(int argc, char *argv[])
       if (block) {
         fseek(fp, 0, SEEK_SET);
         fread(block, 1, fsize, fp);
-        disasm_init(&arm, DISASM_ADDRESS | DISASM_COMMENT);
+        disasm_init(&arm, DISASM_ADDRESS | DISASM_INSTR);
         if (argc > 5) {
           size_t ro_addr = strtoul(argv[4], NULL, 0);
           size_t ro_size = strtoul(argv[5], NULL, 0);
