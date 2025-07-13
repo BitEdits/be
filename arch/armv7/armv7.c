@@ -162,7 +162,8 @@ static void padinstr(char *text)
 {
   assert(text);
   int i = strlen(text);
-  assert(i > 0);        /* there should already be some text in there */
+  if (i < 1) return;
+//  assert(i > 0);        /* there should already be some text in there */
   if (i < 8) {
     while (i < 8)
       text[i++] = ' ';
@@ -366,7 +367,7 @@ static bool thumb_lsl(ARMSTATE *state, uint32_t instr)
 {
   /* 0000 0xxx xxxx xxxx - shift by immediate, move register */
   if (FIELD(instr, 6, 5) == 0) {
-    assert(state->it_mask == 0); /* this instruction is not valid inside an IT block*/
+//    assert(state->it_mask == 0); /* this instruction is not valid inside an IT block*/
     strcpy(state->text, "movs");
     padinstr(state->text);
     sprintf(tail(state->text), "%s, %s", register_name(FIELD(instr, 0, 3)),
