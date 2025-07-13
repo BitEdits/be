@@ -10,7 +10,7 @@ Features
 * zero builder
 * ANSI C99
 * termio
-* NetBSD, macOS, Linux. NuttX
+* POSIX
 
 Architectures
 -------------
