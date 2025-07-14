@@ -14,6 +14,7 @@ BitEdits-AArch32-Hacker's-Manual/
 0. Name: AArch32.txt
 1. Copiright (c) 2025 Namdak Tonpa, BitEdits Corporation.
 2. Version: 2025-07-14 [00][10][20]
+3. Size: 64KB
 
 ================================================================================
 10 ARCHITECTURE (ARMv7-A/M/R, ARMv8-M)
