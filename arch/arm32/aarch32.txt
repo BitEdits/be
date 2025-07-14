@@ -20,10 +20,81 @@ BitEdits-AArch32-Hacker's-Manual/
 10 ARCHITECTURE (ARMv7-A/M/R, ARMv8-M)
 ================================================================================
 
-0. 32-бітна інструкція завжди 4 байти (little-endian).
+0. Applicability
+
+┌────────────────────┬──────────────┬─────────────────────┐
+│ Core               │ ISA          │ Key Features        │
+├────────────────────┼──────────────┼─────────────────────┤
+│ ARM7TDMI           │ ARMv4T       │ No MMU, Jazelle     │
+│ ARM926EJ-S         │ ARMv5TEJ     │ MMU, Jazelle        │
+│ ARM1136J(F)-S      │ ARMv6        │ MMU, SIMD           │
+│ Cortex-A5          │ ARMv7-A      │ NEON, TrustZone     │
+│ Cortex-A7          │ ARMv7-A      │ big.LITTLE, LPAE    │
+│ Cortex-A8          │ ARMv7-A      │ NEON, VFPv3         │
+│ Cortex-A9          │ ARMv7-A      │ SMP, NEON           │
+│ Cortex-A15         │ ARMv7-A      │ VFPv4, Virtualization│
+│ Cortex-R4          │ ARMv7-R      │ MPU, deterministic  │
+│ Cortex-M0/M0+      │ ARMv6-M      │ NVIC, Thumb-2       │
+│ Cortex-M3/M4       │ ARMv7-M      │ NVIC, MPU, FPU      │
+└────────────────────┴──────────────┴─────────────────────┘
+
+| Profile | Core       | Process     | Commercial Range   | Reference Frequency      |
+| ------- | ---------- | ----------- | -------------------| ------------------------ |
+| ARMv7-A | Cortex-A7  | 28/40 nm    | 520 MHz – 2.3 GHz  | 1.5 GHz (Raspberry Pi 2) |
+| ARMv7-A | Cortex-A9  | 32 nm       | 600 MHz – 2.0 GHz  | 1.2 GHz (Tegra 3)        |
+| ARMv7-A | Cortex-A15 | 28 nm       | 600 MHz – 2.5 GHz  | 1.7 GHz (Exynos 5420)    |
+| ARMv7-R | Cortex-R4  | 65/40 nm    | 300 MHz – 1 GHz+   | 600 MHz (Infineon AURIX) |
+| ARMv7-M | Cortex-M3  | 90/65 nm    | 24 MHz – 180 MHz   | 72 MHz  (STM32F103)      |
+| ARMv7-M | Cortex-M4  | 90/40 nm    | 24 MHz – 240 MHz   | 168 MHz (STM32F407)      |
+| ARMv7-M | Cortex-M7  | 40/28 nm    | 24 MHz – 600 MHz   | 480 MHz (STM32H743)      |
+
+1. Architecture Timeline & Extensions
+
+v4T
+ └── Thumb 16-bit ISA
+v5TE
+ ├── DSP multiply-accumulate
+ └── Jazelle (JTEK)
+v6
+ ├── SIMD (ARM1136)
+ ├── TrustZone (v6Z)
+ └── Thumb-2 (v6T2)
+v7-A/R
+ ├── NEON
+ ├── Virtualization Extensions
+ └── Large-Physical-Address Extension (LPAE)
+v7-M
+ ├── NVIC (Nested Vectored Interrupt Controller)
+ ├── Hardware divide
+ └── Thumb-2 only
+v6-M
+ └── Thumb-2 subset (Cortex-M0/M0+)
+
+2. Architectural Diagram of AArch32
+
+  ┌---------------┐
+  │  CPU Core(s)  │ ARMv7-A/R/M
+  └─┬-------------┘
+    │AXI4/AXI3    (64-bit master)
+ ┌──┴----------┐  ┌-------------┐
+ │ CoreLink CCI│──┤  AXI Slave  │
+ │ (L2, DMA)   │  │  (DDR, EMI) │
+ └──┬----------┘  └-------------┘
+    │AXI-Lite     (32-bit)
+ ┌──┴----------┐  ┌-------------┐
+ │ CoreLink NIC│──┤ APB Bridge  │
+ └──┬----------┘  └─┬-----------┘
+    │APB           │
+ ┌──┴----------┐  ┌-------------┐
+ │ Peripherals │──┤ Clock/Reset │
+ │ (Timers,    │  │ Controller  │
+ │ UART, GPIO) │  │ & Power     │
+ └-------------┘  └-------------┘
+
+3. 32-бітна інструкція завжди 4 байти (little-endian).
    У Thumb-2 є 16-бітні (2 байти) та 32-бітні (4 байти) гібриди.
 
-1. Бітова маска верхнього нібблу (bits 31-28) – cond:
+4. Бітова маска верхнього нібблу (bits 31-28) – cond:
     0000  EQ   | 1000  HI
     0001  NE   | 1001  LS
     0010  CS   | 1010  GE
@@ -33,13 +104,13 @@ BitEdits-AArch32-Hacker's-Manual/
     0110  VS   | 1110  AL
     0111  VC   | 1111  NV (unconditional or SVC)
 
-2. Загальний формат 32-бітної інструкції:
+5. Загальний формат 32-бітної інструкції:
    +-----------------------------------------------+
    | cond | op1(25-24) | op2(23-20) | ...payload...|
    +-----------------------------------------------+
    cond (4) | op1 (2) | op2 (4) | remaining 22
 
-3. Диспатч по op1/op2 (+ cond у деяких випадках)
+6. Диспатч по op1/op2 (+ cond у деяких випадках)
    (пишемо hex, бо легше читати в hexdump):
 
    cond=1110 (AL) – пропускаємо, йдемо по op1/op2
@@ -55,7 +126,7 @@ BitEdits-AArch32-Hacker's-Manual/
    11  | 0xxx xxxx | VFP / NEON (пізніше)
    11  | 1xxx xxxx | SIMD / Advanced SIMD
 
-4. Бітові поля всередині Data-Processing (op1=00):
+7. Бітові поля всередині Data-Processing (op1=00):
    +----+----+----+----+----+----+----+----+
    |31-28|27-26|25  |24-21|20 |19-16|15-12|11-0|
    |cond | 00  | I  |opc  |S | Rn  | Rd  |imm12/reg|
@@ -63,11 +134,11 @@ BitEdits-AArch32-Hacker's-Manual/
    - I=1 → imm12 (rotated)
    - I=0 → shifter operand (Rm, shift, imm5)
 
-5. Thumb-2 (T32) таблиця перших 2 байтів:
+8. Thumb-2 (T32) таблиця перших 2 байтів:
    0xFxxx → 32-біт Thumb-2, 0xExxx → 16-біт, і т.д.
    У цьому документі T32 не описується.
 
-6. Регістри ARMv7-A/R:
+9. Регістри ARMv7-A/R:
    +-------------------------------------------+
    | R0-R12   – загальні (GP)                  |
    | R13 (SP) – stack pointer                  |
@@ -79,7 +150,7 @@ BitEdits-AArch32-Hacker's-Manual/
            10111 ABT, 11011 UND, 11111 SYS
    Banked regs: R8_fiq-R14_fiq, R13_svc, R14_svc, ...
 
-7. Векторна таблиця (4-байтні ентрі):
+10. Векторна таблиця (4-байтні ентрі):
    0x00  Reset
    0x04  Undefined
    0x08  SWI/SVC
@@ -90,7 +161,7 @@ BitEdits-AArch32-Hacker's-Manual/
    0x1C  FIQ
    (можна перенаправити через LDR PC, [PC,#imm])
 
-8. Швидкий ASCII-дизасемблер (псевдокод):
+11. Швидкий ASCII-дизасемблер (псевдокод):
    if ((word >> 28) == 0xE)  // AL
        switch ((word >> 25) & 0b11):
            case 0b00: decode_data_proc(word);
@@ -98,15 +169,30 @@ BitEdits-AArch32-Hacker's-Manual/
            case 0b10: decode_branch(word);
            case 0b11: decode_coproc(word);
 
-9. Приклад інструкції:
+12. Приклад інструкції:
    0xE3A01001 → cond=1110, op1=00, I=1, opc=1101 (MOV), S=0
                 Rn=0000 (ignored), Rd=0001 (R1), imm12=0x001
               → MOV R1,#1
 
-10. Корисні ресурси:
+13. Processor Modes and Registers
+
+┌────────────┬────────────┬─────────────────────────────────────────────┐
+│  Mode      │  CPSR.M    │   Banked Registers                          │
+├────────────┼────────────┼─────────────────────────────────────────────┤
+│ User       │ 10000      │ r0-r12, sp_usr, lr_usr, cpsr                │
+│ FIQ        │ 10001      │ r0-r7, r8_fiq-r14_fiq, spsr_fiq             │
+│ IRQ        │ 10010      │ r0-r12, sp_irq, lr_irq, spsr_irq            │
+│ Supervisor │ 10011      │ r0-r12, sp_svc, lr_svc, spsr_svc            │
+│ Abort      │ 10111      │ r0-r12, sp_abt, lr_abt, spsr_abt            │
+│ Undefined  │ 11011      │ r0-r12, sp_und, lr_und, spsr_und            │
+│ System     │ 11111      │ (same as User)                              │
+└────────────┴────────────┴─────────────────────────────────────────────┘
+
+14. Корисні ресурси:
    - ARM ARM (DDI 0406C) – глава A5 “Instruction Set Encoding”
    - ARM Cortex-A Series Programmer’s Guide §4.4
-   - binutils/opcodes/arm-dis.c (GPL, читати як референс)
+
+15. A32, T16, T32 Decoding Tables
 
 ================================================================================
 Purpose
@@ -1031,7 +1117,6 @@ Profile notes
     pop {r0, pc}      0xbd 0x8f 0xe8 0x00
     mov r0, r1        0x01 0x00 0xa0 0xe1
     bx lr             0x1e 0xff 0x2f 0xe1
-
 
 15. Exploit Flow Template
 
