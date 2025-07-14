@@ -89,6 +89,13 @@ The ARM7 core family consists of:
 2001 ARM7TDMI-S  15 MIPS @ 16.8 MHz : GBA, Nintendo DS, iPod, Lego NXT
 2001 ARM7EJ-S
 
+ARM7TDMI:
+0.35 μm process
+74,209 transistors
+2.2 mm² die size
+1.5 mW/MHz @ 3.0V
+66 MHz max frequency
+
 Uses:
 
 * Apple eMate 300 – laptop running Newton OS
