@@ -1,0 +1,1041 @@
+BitEdits-AArch32-Hacker's-Manual/
+├── 00 meta               # version, changelog, contributors
+├── 10 arch               # ARMv7-A/R + all Cortex-A/R profiles
+├── 20 boot               # Secure/Non-Secure boot flow + bootROM quirks
+├── 30 mmu                # Short-descriptor & LPAE page tables
+├── 40 cache              # PoC for cache side-channels
+├── 50 exceptions         # Vector tables, SMC, FIQ, IRQ abuse
+├── 60 exploits           # ROP/JOP, stack pivot, ret2usr, ret2dl
+
+================================================================================
+00 META
+================================================================================
+
+0. Name: AArch32.txt
+1. Copiright (c) 2025 Namdak Tonpa, BitEdits Corporation.
+2. Version: 2025-07-14 [00][10][20]
+
+================================================================================
+10 ARCHITECTURE (ARMv7-A/M/R, ARMv8-M)
+================================================================================
+
+0. 32-бітна інструкція завжди 4 байти (little-endian).
+   У Thumb-2 є 16-бітні (2 байти) та 32-бітні (4 байти) гібриди.
+
+1. Бітова маска верхнього нібблу (bits 31-28) – cond:
+    0000  EQ   | 1000  HI
+    0001  NE   | 1001  LS
+    0010  CS   | 1010  GE
+    0011  CC   | 1011  LT
+    0100  MI   | 1100  GT
+    0101  PL   | 1101  LE
+    0110  VS   | 1110  AL
+    0111  VC   | 1111  NV (unconditional or SVC)
+
+2. Загальний формат 32-бітної інструкції:
+   +-----------------------------------------------+
+   | cond | op1(25-24) | op2(23-20) | ...payload...|
+   +-----------------------------------------------+
+   cond (4) | op1 (2) | op2 (4) | remaining 22
+
+3. Диспатч по op1/op2 (+ cond у деяких випадках)
+   (пишемо hex, бо легше читати в hexdump):
+
+   cond=1110 (AL) – пропускаємо, йдемо по op1/op2
+
+   op1 | op2       | Клас інструкції
+   ----|-----------|------------------------------------
+   00  | 0xxx xxxx | Data Processing / PSR
+   00  | 1xxx xxxx | Load/Store IMM
+   01  | 0xxx xxxx | Load/Store REG
+   01  | 1xxx xxxx | Load/Store MULT
+   10  | 0xxx xxxx | Branch / Branch & Link
+   10  | 1xxx xxxx | Coproc / SWI / UND
+   11  | 0xxx xxxx | VFP / NEON (пізніше)
+   11  | 1xxx xxxx | SIMD / Advanced SIMD
+
+4. Бітові поля всередині Data-Processing (op1=00):
+   +----+----+----+----+----+----+----+----+
+   |31-28|27-26|25  |24-21|20 |19-16|15-12|11-0|
+   |cond | 00  | I  |opc  |S | Rn  | Rd  |imm12/reg|
+   +----+----+----+----+----+----+----+----+
+   - I=1 → imm12 (rotated)
+   - I=0 → shifter operand (Rm, shift, imm5)
+
+5. Thumb-2 (T32) таблиця перших 2 байтів:
+   0xFxxx → 32-біт Thumb-2, 0xExxx → 16-біт, і т.д.
+   У цьому документі T32 не описується.
+
+6. Регістри ARMv7-A/R:
+   +-------------------------------------------+
+   | R0-R12   – загальні (GP)                  |
+   | R13 (SP) – stack pointer                  |
+   | R14 (LR) – link register                  |
+   | R15 (PC) – program counter (current+8)    |
+   | CPSR     – flags: N Z C V Q J T I F M[4:0]|
+   +-------------------------------------------+
+   M[4:0]: 10000 User, 10001 FIQ, 10010 IRQ, 10011 SVC,
+           10111 ABT, 11011 UND, 11111 SYS
+   Banked regs: R8_fiq-R14_fiq, R13_svc, R14_svc, ...
+
+7. Векторна таблиця (4-байтні ентрі):
+   0x00  Reset
+   0x04  Undefined
+   0x08  SWI/SVC
+   0x0C  Prefetch Abort
+   0x10  Data Abort
+   0x14  Reserved
+   0x18  IRQ
+   0x1C  FIQ
+   (можна перенаправити через LDR PC, [PC,#imm])
+
+8. Швидкий ASCII-дизасемблер (псевдокод):
+   if ((word >> 28) == 0xE)  // AL
+       switch ((word >> 25) & 0b11):
+           case 0b00: decode_data_proc(word);
+           case 0b01: decode_load_store(word);
+           case 0b10: decode_branch(word);
+           case 0b11: decode_coproc(word);
+
+9. Приклад інструкції:
+   0xE3A01001 → cond=1110, op1=00, I=1, opc=1101 (MOV), S=0
+                Rn=0000 (ignored), Rd=0001 (R1), imm12=0x001
+              → MOV R1,#1
+
+10. Корисні ресурси:
+   - ARM ARM (DDI 0406C) – глава A5 “Instruction Set Encoding”
+   - ARM Cortex-A Series Programmer’s Guide §4.4
+   - binutils/opcodes/arm-dis.c (GPL, читати як референс)
+
+================================================================================
+Purpose
+-------
+Flat lookup tables for:
+- 32-bit ARM (A32)                      → arm_table[]
+- 16-bit Thumb-1 + 32-bit Thumb-2       → thumb_table[]
+Valid for ARMv6K, ARMv7-A, ARMv7-R, ARMv7-M (Cortex-M uses only Thumb).
+
+--------------------------------------------------------------------------------
+1. 32-bit ARM (A32)  decode
+--------------------------------------------------------------------------------
+Bit layout (cond always 1110 for unconditional in table below):
+
+[31:28] cond  | [27:25] op1 | [24:20] op2 | [19:16] Rn | [15:12] Rd | [11:0] operand2
+
+  { 0xf0000000, 0xf0000000, arm_unconditional },/* 1111xxxx  (ARMv7 only)       */
+  { 0x0e000010, 0x00000000, arm_dataproc_imsh },/* 00x0xxxx  imm shift, misc    */
+  { 0x0e000090, 0x00000010, arm_dataproc_rxsh },/* 00x1xxxx  reg shift, misc    */
+  { 0x0e000090, 0x00000090, arm_mult_loadstor },/* 00x1xxxx  multiply, extra L/S*/
+  { 0x0e000000, 0x02000000, arm_dataproc_imm }, /* 001xxxx   imm arithmetic     */
+  { 0x0e000000, 0x04000000, arm_loadstor_imm }, /* 010xxxx   LDR/STR imm offset */
+  { 0x0e000010, 0x06000000, arm_loadstor_reg }, /* 0110xxxx  LDR/STR reg offset */
+  { 0x0e000010, 0x06000010, arm_media },        /* 0111xxxx  media (PKH, SXT,…) */
+  { 0x0e000000, 0x08000000, arm_loadstor_mult}, /* 100xxxx   LDM/STM            */
+  { 0x0e000000, 0x0a000000, arm_branch },       /* 101xxxx   B, BL, BLX(imm)    */
+  { 0x0e000000, 0x0c000000, arm_co_loadstor },  /* 110xxxx   coproc LDC/STC     */
+  { 0x0f000010, 0x0e000000, arm_co_dataproc },  /* 1110xxxx  coproc CDP          */
+  { 0x0f000010, 0x0e000010, arm_co_trans },     /* 1111xxxx  MCR/MRC             */
+  { 0x0f000000, 0x0f000000, arm_softintr },     /* SVC (#imm)                   */
+
+Notes
+- Cortex-M has no ARM state; these rows are ignored.
+- v6 cores ignore unconditional (1111) encodings.
+- “media” row covers PKHBT, SXTAB, REV, etc.
+
+--------------------------------------------------------------------------------
+2. Thumb-2  (T16 + T32)  decode
+--------------------------------------------------------------------------------
+Thumb-2 = 16-bit Thumb-1  or  32-bit Thumb-2.
+
+First half-word decides length:
+  11101-11111  → 32-bit (fetch second half-word)
+  else         → 16-bit
+
+T16:
+
+  { 0xf800, 0x0000, thumb_lsl },          /* LSL/MOV imm */
+  { 0xf800, 0x0800, thumb_lsr },          /* LSR imm */
+  { 0xf800, 0x1000, thumb_asr },          /* ASR imm */
+  { 0xfc00, 0x1800, thumb_addsub_reg },   /* ADD/SUB reg */
+  { 0xfc00, 0x1c00, thumb_addsub_imm },   /* ADD/SUB imm3 */
+  { 0xe000, 0x2000, thumb_immop },        /* MOV/ADD/CMP/SUB imm8 */
+  { 0xfc00, 0x4000, thumb_regop },        /* AND/EOR/LSL/LSR/ASR/ROR/TST/NEG/CMP/CMN/ORR/MUL/BIC/MVN */
+  { 0xff00, 0x4400, thumb_regop_hi },     /* ADD/CMP/MOV high regs */
+  { 0xff00, 0x4700, thumb_branch_exch },  /* BX / BLX */
+  { 0xf800, 0x4800, thumb_load_lit },     /* LDR literal */
+  { 0xf000, 0x5000, thumb_loadstor_reg},  /* LDR/STR reg offset */
+  { 0xe000, 0x6000, thumb_loadstor_imm},  /* LDR/STR imm5 offset */
+  { 0xf000, 0x8000, thumb_loadstor_hw },  /* LDRH/STRH imm5 */
+  { 0xf000, 0x9000, thumb_loadstor_stk},  /* LDR/STR SP-relative */
+  { 0xf000, 0xa000, thumb_add_sp_pc_imm },
+  { 0xff00, 0xb000, thumb_adj_sp },       /* ADD/SUB SP imm7 */
+  { 0xff00, 0xb200, thumb_sign_ext },     /* SXTH/SXTB/UXTH/UXTB */
+  { 0xf500, 0xb100, thumb_cmp_branch },   /* CBNZ/CBZ (Thumb-2 16-bit) */
+  { 0xfe00, 0xb400, thumb_push },         /* PUSH */
+  { 0xfe00, 0xbc00, thumb_pop },          /* POP */
+  { 0xfff0, 0xb650, thumb_endian },       /* SETEND (v6) */
+  { 0xffe8, 0xb660, thumb_cpu_state },    /* CPS */
+  { 0xff00, 0xba00, thumb_reverse },      /* REV/REV16/REVSH */
+  { 0xff00, 0xbe00, thumb_break },        /* BKPT */
+  { 0xff00, 0xbf00, thumb_if_then },      /* IT / NOP hints */
+  { 0xf000, 0xc000, thumb_loadstor_mul},  /* LDM/STM */
+  { 0xfe00, 0xd000, thumb_condbranch },   /* conditional branch */
+  { 0xf800, 0xe000, thumb_branch },       /* unconditional branch */
+
+T32:
+
+  { 0xfe00, 0xea00, thumb2_constshift},   /* ADD/SUB/CMP/RSB imm12 */
+  { 0xff80, 0xfa00, thumb2_regshift_sx},  /* register shift + sign-extend */
+  { 0xff80, 0xfa80, thumb2_simd_misc},    /* parallel add/sub, pack/unpack */
+  { 0xff80, 0xfb00, thumb2_mult32_acc},   /* MLA, MLS, MUL 32-bit */
+  { 0xff80, 0xfb80, thumb2_mult64_acc},   /* UMULL, SMULL, UMLAL, SMLAL */
+  { 0xf800, 0xf000, thumb2_imm_br_misc},  /* B, BL, BLX, MRS/MSR, hints */
+  { 0xfe00, 0xf800, thumb2_loadstor },    /* LDR/STR/LDREX/STREX w/ imm12 */
+  { 0xfe40, 0xe840, thumb2_loadstor2 },   /* LDRD/STRD, TBB/TBH */
+  { 0xfe40, 0xe800, thumb2_loadstor_mul}, /* LDM/STM, RFE, SRS */
+  { 0xee00, 0xec00, thumb2_co_loadstor},  /* VLDM/VSTM, VLDR/VSTR */
+  { 0xef10, 0xee00, thumb2_co_dataproc},  /* VADD, VMUL, VCVT, etc. */
+  { 0xef10, 0xee10, thumb2_co_trans },    /* VMOV (ARM <-> FP/NEON regs) */
+
+Profile notes
+-------------
+• Cortex-M0/M0+/M1/M3/M4/M7/M23/M33 execute ONLY Thumb-2; ignore ARM rows.
+• v6-M (Cortex-M0/M1) lacks 32-bit Thumb-2; all rows ≥ 0xE800 are invalid.
+• v7-M adds 0xFxxx space (UDF, WFI, etc.) and the full FP/NEON rows.
+• v7-R supports both ARM and Thumb states; decode both tables.
+• v7-A supports both, plus Jazelle & ThumbEE (not shown).
+
+==========================================================================================
+20 BOOT (ARM Boot Process, DTS, DTB, DTC, UEFI, u-Boot, EEPROM, Secure Boot, UART, etc.)
+==========================================================================================
+
+0.  Glossary
+    ROM   = mask-ROM in SoC (BootROM, BL1, iROM, etc.)
+    SPL   = Secondary Program Loader (u-boot-spl, s-boot, etc.)
+    BL2   = Trusted-Firmware BL2 (ARM-TF), or vendor boot stage 2
+    BL31  = EL3 runtime firmware (ARM-TF)
+    BL32  = Secure-EL1 payload (OP-TEE, Trusty, etc.)
+    BL33  = Non-secure OS loader (u-boot-proper, UEFI, etc.)
+    SCP   = System Control Processor (power, clocks)
+    SCPBL = SCP boot-loader
+    DTS   = Device-Tree Source (.dts)
+    DTB   = Device-Tree Blob (.dtb) – compiled DTS
+    DTC   = Device-Tree Compiler
+    OTP   = One-Time-Programmable eFuses / EEPROM pages
+    SBSA  = Server Base System Architecture UART (0x9000000-0x9000FFF)
+
+1.  Physical boot sequence (cold reset)
+    1.1  Power-on
+         - Reset vector fixed by hardware (ROM at 0x0000_0000 or 0xFFFF_0000)
+         - All cores in secure state, MMU/Caches off, I-Cache may be on
+         - BootROM reads strap-pins / OTP to choose boot source:
+           – eMMC  (SD/MMC 8-bit)
+           – NAND
+           – SPI-NOR
+           – UART (XMODEM / YMODEM / USB-CDC)
+           – USB-DFU
+    1.2  BootROM checks RSA/ECDSA signature
+         – RSA 2048/4096 or ECDSA P-256/P-384
+         – Hash stored in OTP or in certificate header
+         – If fail → UART recovery mode (see §5)
+
+2.  Boot image formats
+    2.1  Legacy u-Boot uImage
+         – mkimage header + zImage + DTB appended
+    2.2  Android bootimg (Android 10-14, AOSP)
+         – 2 KiB header → kernel → ramdisk → DTB → extra
+    2.3  ARM Trusted-Firmware FIT
+         – Flattened Image Tree (FIT) with sub-images:
+           * BL2, BL31, BL32, BL33, SCP_BL
+           * Each node has algo, value, signature
+    2.4  UEFI Capsule
+         – U-Boot EFI loader → grubaa64.efi
+         – ACPI tables preferred on ARMv8-A, DTB on ARMv7-A
+
+3.  Secure Boot chain (ARM-TF style)
+    OTP → BL1 (ROM) → BL2 → BL31 → BL32 → BL33
+    3.1  OTP fuses
+         – public key hash (SHA-256 of RSA key)
+         – anti-rollback monotonic counter
+         – debug disable / JTAG lock
+    3.2  RSA/ECDSA signature verification
+         – PKCS#1 v1.5 / PSS or ECDSA-SHA-256
+         – Certificate format = X.509v3 with custom OIDs
+    3.3  Chain-of-trust failures
+         – BootROM falls back to UART recovery
+         – JTAG/SWD can be forced by blowing “debug” fuse
+
+4.  Device-Tree essentials
+    4.1  Minimal working DTB for a Cortex-A7 board
+        /dts-v1/;
+        / {
+            #address-cells = <1>;
+            #size-cells = <1>;
+            model = "Example SoC";
+            compatible = "vendor,example", "arm,cortex-a7";
+            memory@80000000 {
+                device_type = "memory";
+                reg = <0x80000000 0x20000000>;
+            };
+            chosen {
+                bootargs = "console=ttyAMA0,115200n8 root=/dev/mmcblk0p2 rw";
+                stdout-path = "serial0:115200n8";
+            };
+            serial@9000000 {
+                compatible = "arm,pl011", "arm,primecell";
+                reg = <0x9000000 0x1000>;
+                interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
+                clocks = <&uartclk>;
+            };
+        };
+    4.2  Compile with DTC
+        dtc -I dts -O dtb -o board.dtb board.dts
+    4.3  Overlays (Cortex-M33)
+        – /configfs for runtime overlay loading (Linux 6.x)
+
+5.  UART rescue / XMODEM / YMODEM
+    5.1  BootROM serial loader
+         – 8 N 1, 115200 (default)
+         – Common magic bytes: 0x7E (XMODEM-CRC), 0x01 (SOH)
+    5.2  One-liner to push u-boot-spl.bin
+        sx u-boot-spl.bin < /dev/ttyUSB0 > /dev/ttyUSB0
+    5.3  Timeout quirks
+         – Some SoCs (Allwinner) require 0.5 s silence after reset
+         – ST STM32MP1 uses USB-DFU fallback if UART fails
+
+6.  EEPROM / OTP layout (typical)
+    0x00  – 0x0F  : 128-bit AES Key (secure JTAG)
+    0x10  – 0x1F  : 256-bit SHA-256 of RSA public key
+    0x20  – 0x2F  : 64-bit anti-rollback counter
+    0x30  – 0x3F  : 64-bit serial number
+    0x40  – 0x7F  : 512-bit customer data (board-id, MAC, etc.)
+
+7.  u-Boot SPL flow (source tree: `spl/` directory)
+    7.1  Early init
+         – Enable caches, minimal clocks, DDR training
+         – Load BL31/BL2 or BL33 via defined interface
+    7.2  Environment variables
+         – `bootcmd_mmc0="load mmc 0:1 0x80008000 zImage; bootz 0x80008000 – 0x83000000"`
+         – `bootcmd_usb="usb start; load usb 0 0x80008000 zImage; bootz …"`
+
+8.  UEFI boot (EDK2 for ARMv7)
+    8.1  Build
+        export ARCH=arm
+        make -C edk2/BaseTools
+        build -a ARM -t GCC5 -p Platform/ARM/ArmPlatformPkg/ArmPlatform.dsc
+    8.2  Capsule update
+        – CapsuleApp.efi → capsule.bin → reboot → capsule parser
+
+9.  Debug & JTAG override
+    9.1  BootROM JTAG lock
+         – `blow_jtag_lock` fuse sets `DBGCFG[0]=1`
+         – Physical strap (GPIO) can bypass on some SoCs
+    9.2  Boot-time JTAG unlock
+         – In BL2: `writel(0xB16B00B5, DBG_UNLOCK_REG)`
+         – Or use BootROM “magic string” packets on UART
+
+10. Practical checklist for a new board bring-up
+    [ ] Identify reset vector (ROM vs external SPI)
+    [ ] Dump BootROM via JTAG while held in reset
+    [ ] Locate OTP map + public key hash offset
+    [ ] Generate RSA/ECDSA key pair → sign SPL / BL2
+    [ ] Create minimal DTB (memory, serial, watchdog)
+    [ ] Test UART recovery (XMODEM)
+    [ ] Build u-boot-spl + u-boot-proper → flash
+    [ ] Validate secure boot chain (fail closed)
+    [ ] Enable watchdog in SPL to avoid soft-brick
+    [ ] Document fuse map & recovery pins in README.md
+
+11. One-liner fuse example (Allwinner A33)
+
+    sunxi-fel spl u-boot-spl.bin
+    sunxi-fel write 0x43000000 u-boot.itb
+    sunxi-fel exec 0x43000000
+
+12. Quick “boot loop” PoC (for fuzzing)
+
+    // SPL payload that immediately reboots
+    void _start(void)
+    {
+        // write watchdog restart register
+        *(volatile uint32_t*)0x01C20C00 = 0xA5; // example
+        for (;;);
+    }
+
+================================================================================
+30 MMU ‑ Memory Management Unit (ARMv7-A/R, ARMv8-M with optional MPU)
+==================================================================================
+
+0.  Scope
+    - ARMv7-A & ARMv7-R:  VMSA (Virtual Memory System Architecture)
+    - ARMv7-M & ARMv8-M:  PMSA (Protected Memory System Architecture)
+    - Both Short-descriptor (v6/v7) and LPAE (Large-Physical-Address Extension, v7-A only)
+    - All granularity (4 KB, 64 KB, 1 MB, 16 MB)
+    - TEX remap, cacheability hints, shareability domains, access flags
+    - Example code snippets are pure C and header-only ASM so you can drop them into BootROM, SPL, or bare-metal.
+
+1.  Address Spaces
+    4 GB virtual → 32-bit
+    1 TB physical → 40-bit with LPAE (ARMv7-A)
+    32-bit physical → legacy v6/v7-A/R, all v7-M
+
+2.  Privilege Levels
+    PL0  User / Thread
+    PL1  Kernel / Supervisor
+    PL2  Hyp (ARMv7-A virtualization)
+    Secure-NS split is orthogonal to PLx.
+
+3.  Translation Look-aside Buffer (TLB)
+    - Unified I+D or split I-TLB + D-TLB
+    - Invalidate by MVA, ASID, or entire TLB via CP15 ops
+    - Global vs non-global (ASID) bits in descriptors
+
+4.  Page-Table Formats
+    4.1  Short-descriptor (classic 2-level)
+         - 4096 entries L1 (1 MB sections)
+         - 256 entries L2 (4 KB small pages, 64 KB large pages)
+         - 16 MB super-sections (coalesced 16×1 MB)
+
+    4.2  LPAE (3-level or 4-level)
+         - 512 GB L0 (1 TB max)
+         - 1 GB L1
+         - 2 MB L2
+         - 4 KB L3
+         - 64-bit descriptors (upper 32 bits = high word)
+
+5.  Descriptor Bits Cheat-Sheet
+    Short-descriptor (32-bit):
+
+    bits
+    31:12  address (1 MB section) or pointer to L2
+    11:10  TEX[1:0]  (cacheability)
+    9      C (cacheable)
+    8      B (bufferable)
+    7:5    Domain
+    4      P (ECC)
+    3      XN (execute-never)
+    2      AP[2] (access-permission high bit)
+    1:0    AP[1:0] + SBZ (00=none 01=RW 10=RO 11=RW)
+
+    LPAE (64-bit):
+
+    [47:12] output address
+    [11]    nG (non-global)
+    [10]    AF (access flag)
+    [9:8]   SH (shareability)
+    [7:4]   AP[3:0]
+    [3]     NS (non-secure)
+    [2]     XN
+    [1:0]   reserved for type
+
+6.  Domain & Shareability Domains
+    - 16 domains (0-15) in short-descriptor
+    - Shareability: inner vs outer, 3-state (non-shareable, inner, outer)
+    - LPAE uses shareability fields directly (no domain)
+
+7.  Cacheability & TEX Remap
+    - TEX[2:0] + C + B → 8 cache policies
+    - Remap registers (PRRR, NMRR) override C/B/TEX
+    - LPAE uses MAIR0/MAIR1 (64-bit) instead of TEX
+
+8.  Access Permission Faults
+    - Alignment fault (bit 1 in DFSR)
+    - Translation fault (page not present)
+    - Permission fault (AP bits)
+    - Domain fault (short-descriptor only)
+    - Debug fault (watchpoint)
+
+9.  Fault Status & Address Registers
+
+    DFSR  (0xEE000ED30)  – fault status
+    DFAR  (0xEE000ED34)  – faulting MVA
+    IFSR  (0xEE000ED38)  – instruction fault
+    IFAR  (0xEE000ED3C)
+
+    Cortex-M: MMFSR, MMFAR, BFAR instead.
+
+10. Enable / Disable Sequence
+
+    // Short-descriptor, single core, secure
+    void mmu_init(void) {
+        uint32_t *ttb = (uint32_t *)0x40000000;      // 16 kB aligned
+        uint32_t *l2  = (uint32_t *)0x40004000;
+
+        // 0x0000_0000–0x2000_0000 → 1 MB sections, RW, cached
+        for (uint32_t va = 0x00000000; va < 0x20000000; va += 0x00100000) {
+            uint32_t pa = va;
+            ttb[va >> 20] = pa | 0x00000C0E; // C=1 B=1 TEX=0, AP=11, domain=0
+        }
+
+        // 0x8000_0000–0x9000_0000 → 4 KB pages
+        for (uint32_t va = 0x80000000; va < 0x90000000; va += 0x00001000) {
+            uint32_t idx = (va >> 20);
+            uint32_t offset = (va >> 12) & 0xFF;
+            if (!(ttb[idx] & 0x3)) { // entry missing
+                uint32_t *l2tbl = &l2[idx * 256];
+                ttb[idx] = (uint32_t)l2tbl | 0x00000001;
+            }
+            uint32_t *l2tbl = (uint32_t *)(ttb[idx] & 0xFFFFFC00);
+            uint32_t pa = va;
+            l2tbl[offset] = pa | 0x00000C0F; // small page, AP=11, C/B=1
+        }
+
+        // set TTBR0
+        asm volatile("mcr p15, 0, %0, c2, c0, 0" :: "r"(ttb));
+        // set domain = 0x55555555 (all client)
+        asm volatile("mcr p15, 0, %0, c3, c0, 0" :: "r"(0x55555555));
+
+        // invalidate TLB & caches
+        asm volatile(
+            "mcr p15, 0, %0, c8, c7, 0\n"  // TLBIALL
+            "mcr p15, 0, %0, c7, c5, 0" :: "r"(0) : "memory");
+
+        // enable MMU, cache, branch predictor
+        uint32_t sctlr;
+        asm volatile("mrc p15, 0, %0, c1, c0, 0" : "=r"(sctlr));
+        sctlr |= 0x00001005; // M=1 C=1 Z=1
+        asm volatile("mcr p15, 0, %0, c1, c0, 0" :: "r"(sctlr));
+    }
+
+11. LPAE Enable (ARMv7-A only)
+
+    // 3-level page table (512-entry L0, 512-entry L1, 512-entry L2)
+    // MAIR0 = 0xFF44FF44  (inner=write-back, outer=write-back)
+    // TTBR0_EL1 = base of L0
+
+12. Cortex-M MPU (PMSA)
+    - 8 regions (v7-M) or 16 regions (v8-M)
+    - Region registers: MPU_RBAR, MPU_RASR
+    - Example (STM32F4):
+
+    void mpu_enable(void) {
+        MPU->RNR  = 0;
+        MPU->RBAR = 0x20000000 | 0x10; // base | region
+        MPU->RASR = 0x03070027; // XN=0, AP=11, TEX=0, C=B=1, S=0, SIZE=128 kB
+        MPU->CTRL = 0x00000005; // MPU enable, background region
+    }
+
+13. Cache & TLB maintenance commands (CP15)
+
+    TLBIALL     invalidate entire TLB
+    TLBIASID    invalidate by ASID
+    TLBIVAL     invalidate by MVA
+    DCCISW      clean & invalidate data cache line by set/way
+    ICIALLU     invalidate entire instruction cache
+
+14. Shareable vs Device memory
+    - Device memory = non-cached, non-speculative
+    - Strongly ordered vs non-strongly ordered
+    - Example: UART registers mapped as Device-nGnRnE
+
+15. Debugging MMU faults
+    Linux userspace helper
+    cat /proc/<pid>/smaps
+    cat /proc/<pid>/pagemap
+
+16. Fault injection PoC (write to read-only page)
+    int *p = (int *)0x80000000;
+    *p = 0xdeadbeef;  // triggers DFAR=0x80000000, DFSR=0x00000F05
+
+17. One-liner to dump current TTBR0/TTBR1 (EL1)
+    uint32_t ttbr0, ttbr1;
+    asm("mrc p15, 0, %0, c2, c0, 0" : "=r"(ttbr0));
+    asm("mrc p15, 0, %0, c2, c0, 1" : "=r"(ttbr1));
+
+18. Common pitfalls
+    - Forgetting to set domain register (short-descriptor) → instant prefetch abort
+    - Caches on before MMU on → undefined behavior
+    - LPAE page tables must be 4 KB aligned
+    - Cortex-M regions must be power-of-two size & aligned
+    - Cache maintenance must be before MMU enable if caches were on
+
+19. Quick reference ASCII cheat sheet
+
+    Short-descriptor:
+    1 MB section:  |31:20 PA|11:10 TEX|9 C|8 B|7:5 Dom|4 P|3 XN|2 AP2|1:0 AP1|0 1|
+    4 KB page:     |31:12 PA|11:10 TEX|9 C|8 B|7:4 AP|3 XN|2 1|1 1|0 1|
+
+================================================================================
+40 CACHE ‑ Cache Hierarchy, Coherency, Side-Channels & Hardening (ARMv7-A/R/M)
+==================================================================================
+
+0.  Scope & Quick Map
+    - L1 I-Cache + D-Cache (Harvard) on all cores
+    - Optional L2 unified (Cortex-A7/A9/A15/A17)
+    - Optional L3 on big.LITTLE clusters (CCI-400/500)
+    - ARMv7-M has single-ported I+D with no L2
+    - PoC (Point of Coherency) = last shared cache level
+    - PoU (Point of Unification) = where I & D become coherent
+
+1.  Cache Geometry Cheat-Sheet
+    +----------+----------+----------+----------+----------+
+    | Core     | L1-I     | L1-D     | L2       | L3       |
+    +----------+----------+----------+----------+----------+
+    | A5       | 32 KiB   | 32 KiB   | 0-512 KiB| —        |
+    | A7       | 32 KiB   | 32 KiB   | 0-1 MiB  | —        |
+    | A9       | 32 KiB   | 32 KiB   | 0-2 MiB  | —        |
+    | A15      | 32-64 KiB| 32 KiB   | 0-2 MiB  | —        |
+    | M3       | 0-64 KiB | 0-64 KiB | —        | —        |
+    | M4       | 0-64 KiB | 0-64 KiB | —        | —        |
+    +----------+----------+----------+----------+----------+
+
+2.  Cacheability Attributes
+    Bits in Short-Descriptor page table:
+      C = 1  → cacheable
+      B = 1  → bufferable
+      TEX[2:0] + C + B → 8 policies
+    Common combos:
+      000 1 1  → Normal, write-back, write-allocate, cacheable
+      001 1 0  → Normal, write-through, no-write-allocate
+      010 0 0  → Device-nGnRnE (strongly ordered)
+      011 0 0  → Device-nGnRE (non-cached, non-buffered)
+
+3.  Maintenance Instructions (CP15)
+    +--------+-------------------------------------------+
+    | Mnemonic | Operation                                  |
+    +--------+-------------------------------------------+
+    | ICIALLU  | Invalidate entire I-Cache                  |
+    | ICIMVAU  | Invalidate I-Cache line by MVA             |
+    | DCIMVAC  | Invalidate D-Cache line by MVA to PoC      |
+    | DCCMVAC  | Clean D-Cache line by MVA to PoC           |
+    | DCCIMVAC | Clean & invalidate D-Cache line by MVA PoC |
+    | DCCSW    | Clean by set/way                           |
+    | DCCISW   | Clean & invalidate by set/way              |
+    | TLBIALL  | Invalidate entire TLB                      |
+    +--------+-------------------------------------------+
+    Cortex-M: CMSIS provides `SCB_InvalidateDCache_by_Addr`, etc.
+
+4.  Set/Way vs MVA
+    - Set/Way  = (index, way)  → hardware flush for WFI/WFE
+    - MVA      = virtual address → fine-grain flush
+    - Always use MVA unless booting or powering down.
+
+5.  Clean & Invalidate Sequence (bare-metal)
+
+    void flush_dcache_range(void *start, size_t len)
+    {
+        uintptr_t addr = (uintptr_t)start & ~0x1F;  // 32-byte aligned
+        uintptr_t end  = ((uintptr_t)start + len + 31) & ~0x1F;
+        for (; addr < end; addr += 32) {
+            asm volatile("mcr p15, 0, %0, c7, c14, 1" :: "r"(addr));
+        }
+        asm volatile("dsb");
+        asm volatile("isb");
+    }
+
+6.  Cache Coherency Protocols
+    - MESI (Cortex-A5/A7/A9)
+    - MOESI (Cortex-A15)
+    - ACE (AXI Coherency Extensions) on big.LITTLE
+    - CCI-400/500/600 interconnect handles snooping
+    - Cortex-M has no hardware coherency (use software flush)
+
+7.  Cache Lockdown (optional)
+    - `L2C-310` supports lockdown registers
+    - Lock by way or line; useful for deterministic RTOS
+
+8.  Side-Channel Attacks & Mitigations
+
+    8.1  Prime+Probe on L1-D
+
+         // 32-byte line, 16-way set, 512 sets (32 KiB)
+         #define L1_LINES  512
+         uint8_t probe[L1_LINES * 64] __attribute__((aligned(64)));
+         void prime(void)
+         {
+             for (int i = 0; i < L1_LINES; i++)
+                 probe[i * 64] = 0;
+         }
+         uint64_t probe_time(void)
+         {
+             uint64_t t0 = rdtsc();
+             for (int i = 0; i < L1_LINES; i++)
+                 probe[i * 64]++;
+             uint64_t t1 = rdtsc();
+             return t1 - t0;
+         }
+
+    8.2  Flush+Reload
+         - Use `DCIMVAC` to flush victim line
+         - Measure reload latency
+    8.3  Spectre-PHT / Spectre-BTB
+         - Disable branch predictor via SCTLR.Z
+         - Use speculation barriers: `CSDB`, `SSBB`
+    8.4  Cache Allocation Technology (CAT)
+         - ARMv8.2+ only (not in ARMv7)
+         - Software mitigation: lock victim line before sensitive op
+
+9.  PoC: Cache-as-RAM (CAR) during BootROM
+
+    /* Map L2 as temporary RAM before DDR init */
+    #define L2_BASE 0x40000000
+    #define L2_SIZE 0x00080000  /* 512 KiB */
+    mmu_map(L2_BASE, L2_BASE, L2_SIZE, NORMAL_WB);
+
+
+10. Cache Timing Leakage on Cortex-M
+    - No L2, no coherency → easier to isolate
+    - Use DWT (Data Watchpoint & Trace) counters
+
+    // Enable DWT cycle counter
+    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+    DWT->CYCCNT = 0;
+    DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+
+
+11. Defensive Programming Checklist
+    [ ] Flush cache before every secret-dependent branch
+    [ ] Use `__attribute__((aligned(64)))` buffers to avoid aliasing
+    [ ] Disable speculative prefetch via CP15 prefetch control
+    [ ] Lock critical code sections in I-Cache (lockdown)
+
+12. One-liner to disable I-Cache for side-channel test
+
+    uint32_t sctlr;
+    asm volatile("mrc p15, 0, %0, c1, c0, 0" : "=r"(sctlr));
+    sctlr &= ~(1 << 12);  // I=0
+    asm volatile("mcr p15, 0, %0, c1, c0, 0" :: "r"(sctlr));
+
+
+13. Cache-Poisoning via DMA
+    - DMA engines bypass caches → stale data
+    - Always `clean + invalidate` buffer before/after DMA
+
+    void dma_xfer(void *buf, size_t len)
+    {
+        flush_dcache_range(buf, len);
+        /* start DMA */
+        while (dma_busy());
+        invalidate_dcache_range(buf, len);
+    }
+
+
+14. Cache Performance Counters
+    - Cortex-A7: PMCCNTR, PMEVTYPER0-5
+    - Events: 0x03 Cache refill, 0x04 Cache access, 0x0B L1 write-back
+
+    asm("mcr p15, 0, %0, c9, c12, 0" :: "r"(0x8000000F)); // enable
+    asm("mcr p15, 0, %0, c9, c13, 0" :: "r"(0));         // reset
+
+15. Quick Reference ASCII
+
+    Cache Line Size (bytes)
+    Cortex-A5  32
+    Cortex-A7  32
+    Cortex-A9  32
+    Cortex-A15 64
+    Cortex-M3  32
+    Cortex-M4  32
+
+================================================================================
+50 EXCEPTIONS — Vector Tables, Faults, Handlers & Hacking Tricks (ARMv7-A/R/M)
+==================================================================================
+
+0.  Scope
+    - Covers ARMv7-A, ARMv7-R, ARMv7-M, ARMv8-M Baseline/Mainline
+    - Vectors, priorities, Return-Linkage, Secure vs Non-Secure, FIQ/IRQ abuse
+    - Real-world PoCs: stack pivot via SVC, ret2usr via prefetch-abort, etc.
+
+1.  Vector Table Layout (ARM state)
+
+    Address   Exception             Mode (CPSR.M)  Notes
+    0x00      Reset                 SVC (0x13)     First instruction
+    0x04      Undefined             UND (0x1B)
+    0x08      SVC (SWI)             SVC (0x13)     Used for syscalls & ret2usr
+    0x0C      Prefetch Abort        ABT (0x17)     P-Abort → shellcode injection
+    0x10      Data Abort            ABT (0x17)
+    0x14      (reserved)            —
+    0x18      IRQ                   IRQ (0x12)     Peripheral interrupt
+    0x1C      FIQ                   FIQ (0x11)     Fast IRQ / secure back-door
+
+    High-vectors: 0xFFFF0000 (set via SCTLR.V) — used by secure ROM.
+
+2.  Vector Table Layout (Thumb state)
+    - Same addresses, but 16-bit instructions (usually `B <handler>`).
+    - Cortex-M: table starts at VTOR (0xE000ED08) and is word-aligned.
+
+3.  Cortex-M NVIC (Nested Vectored Interrupt Controller)
+
+    Address   Exception               Priority Bits   Notes
+    0x00      Initial SP              —               First word
+    0x04      Reset                   -3 (highest)
+    0x08      NMI                     -2
+    0x0C      HardFault               -1
+    0x10-0x1C MemManage/Bus/Usage/SVC - configurable
+    0x20-0x3C DebugMon/PendSV/SysTick
+    0x40+     External IRQ 0-239      0-255
+
+    Priority grouping: `AIRCR.PRIGROUP` (split pre-empt & sub-priority).
+
+4.  Link Registers & Return Magic
+
+    ARM mode:
+    - `LR_irq`, `LR_svc`, `LR_fiq`, etc. hold return address + 4.
+    - `SUBS pc, lr, #4` to return from IRQ, or `MOVS pc, lr` for SVC.
+
+    Thumb mode:
+    - `EXC_RETURN` value (Cortex-M) tells hardware which stack to pop.
+
+    EXC_RETURN values (Cortex-M):
+    0xFFFFFFF1  Return to Handler mode, MSP
+    0xFFFFFFF9  Return to Thread mode, MSP
+    0xFFFFFFFD  Return to Thread mode, PSP
+
+5.  Fault Status Registers
+
+    ARMv7-A/R:
+
+    DFSR  (c5, c0, 0)   Data Fault Status
+    IFSR  (c5, c0, 1)   Instruction Fault Status
+    IFAR  (c6, c0, 2)   Faulting VA
+    DFAR  (c6, c0, 0)   Faulting VA
+    ADFSR (c5, c1, 0)   Auxiliary DFSR
+    AIFSR (c5, c1, 1)   Auxiliary IFSR
+
+    Cortex-M:
+
+    CFSR  (0xE000ED28)  Combined Fault Status
+    HFSR  (0xE000ED2C)  HardFault Status
+    MMAR  (0xE000ED34)  MemManage Address
+    BFAR  (0xE000ED38)  Bus Fault Address
+
+6.  Fault Types & Encodings (short-descriptor)
+
+    DFSR[3:0]  Meaning
+    0b0001     Alignment fault
+    0b0100     Translation fault (section)
+    0b0110     Access flag fault (section)
+    0b1111     Permission fault (section)
+
+7.  Secure vs Non-Secure Exceptions (ARM-TrustZone)
+
+    - Secure world uses vector at 0x0000_0000
+    - Non-secure world uses vector at 0xFFFF_0000 (SCTLR.V=1)
+    - `SCR.NS` bit determines which world on entry.
+    - SMC from non-secure → Secure Monitor Vector (0x0000_0008).
+
+8.  Practical Hacking Tricks
+
+    8.1  ret2usr via SVC
+
+         // userland shellcode
+         asm("svc #0x1234");
+
+         Kernel handler:
+
+         uint32_t *sp = (uint32_t *)current_sp();
+         sp[0] = user_shellcode;   // PC
+         sp[1] = 0x10;             // CPSR (USR)
+
+    8.2  FIQ back-door
+         - Route FIQ to secure handler, set `SCR.FIQ=1` → secure side gets FIQ even in non-secure.  
+         - Use to dump secure RAM or escalate.
+
+    8.3  Prefetch-Abort to shellcode
+
+         // Map page as XN, jump to it → P-Abort handler jumps to shellcode
+         void __attribute__((naked)) pabort_handler(void) {
+             asm("ldr pc, =shellcode");
+         }
+
+    8.4  Stack pivot via Data-Abort
+
+         // DFAR points to pivot gadget
+         asm("ldr r0, [r0, #0x1000]");
+
+         Handler sets `SP = gadget`.
+
+9.  Exception Entry / Exit Sequence (ARM mode)
+
+    Entry:
+
+    CPSR → SPSR_<mode>
+    LR_<mode> = return address
+    PC = vector address
+
+    Exit:
+
+    SUBS pc, lr, #4    // IRQ/FIQ/Abort
+    MOVS pc, lr        // SVC/Undefined
+
+10. Exception Priorities (ARMv7-A/R)
+
+    Reset > Data Abort > FIQ > IRQ > Prefetch Abort > SVC > Undefined
+
+11. Cortex-M Exception Entry (microscopic)
+
+    // hardware does:
+    R0-R3,R12,LR,PC,xPSR pushed to active stack
+    PC = vector[exception_num]
+    LR = EXC_RETURN
+
+12. Fault Injection via AXI bus (hardware)
+
+    - Drive AxPROT[1]=0 (non-secure) → non-secure abort on secure access  
+    - Use FPGA AXI master to trigger Bus Fault on Cortex-M
+
+13. Debug & Monitor Mode
+
+    - Monitor mode (ARMv7-A) allows single-stepping exceptions  
+    - `MDSCR.SS` bit + `DBGDSCR` registers  
+    - GDB stub example:
+
+    monitor reset halt
+    monitor arm semihosting enable
+
+14. One-liner to dump current exception level
+
+    uint32_t cpsr;
+    asm("mrs %0, cpsr" : "=r"(cpsr));
+    printf("Mode=%02x\n", cpsr & 0x1F);
+
+15. Quick Reference ASCII Table
+
+    Exception  Offset  Mode  LR Offset
+    Reset      0x00    SVC   +0
+    Undef      0x04    UND   +0
+    SVC        0x08    SVC   +0
+    P-Abort    0x0C    ABT   +4
+    D-Abort    0x10    ABT   +8
+    IRQ        0x18    IRQ   +4
+    FIQ        0x1C    FIQ   +4
+
+================================================================================
+60 EXPLOITS — ROP/JOP, Stack Pivot, ret2usr, ret2dl, ret2libc, SMC, SMC-ROP
+==================================================================================
+
+0.  Scope
+    - ARMv7-A / R / M  (A32 + Thumb-2)
+    - Pure software & TrustZone-M tricks
+    - All snippets compile with `arm-none-eabi-gcc -march=armv7-a -c`
+
+1.  Calling-Convention Quick-Ref
+    ┌-----------┬-----------┬------------┐
+    │ Register  │ Purpose   │ Saved by   │
+    ├-----------┼-----------┼------------┤
+    │ r0-r3     │ args/ret  │ caller     │
+    │ r4-r11    │ locals    │ callee     │
+    │ r12 (ip)  │ scratch   │ caller     │
+    │ sp        │ stack ptr │ never      │
+    │ lr (r14)  │ return    │ caller     │
+    └-----------┴-----------┴------------┘
+    Thumb-2 uses the same mapping; only `ip` is restricted.
+
+2.  Gadget Catalogue (32-bit ARM)
+    ┌-----------------┬------------------------------┐
+    │ Gadget          │ Encoded bytes (little)       │
+    ├-----------------┼------------------------------┤
+    │ pop {r0, pc}    │ 0x00 0xbd 0x8f 0xe8          │
+    │ mov r0, r1      │ 0x01 0x00 0xa0 0xe1          │
+    │ bx lr           │ 0x1e 0xff 0x2f 0xe1          │
+    │ add sp, #imm    │ 0x?? 0x?? 0x8d 0xe2          │
+    └-----------------┴------------------------------┘
+    Thumb-2: use `pop {r0, pc}` 0xbd 0x00 (16-bit) or `pop.w {r0, pc}` 0xbd 0xe8
+
+3.  ROP Chain Skeleton
+
+    uint32_t rop[] = {
+        0xdeadbeef,             // pop {r0, pc}
+        0x12345678,             // arg0
+        0xcafec0de,             // pop {r1, pc}
+        0x87654321,             // arg1
+        0xfacefeed              // target (system, shellcode, etc.)
+    };
+
+    Push `rop` onto stack, set `lr = &rop[0]`, then `bx lr`.
+
+4.  JOP Dispatcher (Thumb-2)
+
+    dispatcher:
+        pop {r3, pc}       // r3 = next gadget
+        bx   r3            // jump to next
+
+    Encode as 4-byte Thumb-2: `0xbd 0x00 0x87 0x47`
+
+5.  Stack Pivot via Data-Abort
+
+    // Trigger abort at 0x0
+    asm volatile("ldr r0, [r0, #0]");
+    // Handler:
+    asm volatile(
+        "sub lr, lr, #8\n\t"
+        "ldr sp, [lr, #-4]\n\t"
+        "ldr pc, [lr, #-8]"
+    );
+
+    Place new SP at `lr-4`, new PC at `lr-8`.
+
+6.  ret2usr (kernel → userland)
+
+    // Inside SVC handler
+    struct pt_regs *r = task_pt_regs(current);
+    r->ARM_pc = user_shellcode;
+    r->ARM_cpsr &= ~0x1F;
+    r->ARM_cpsr |= 0x10;  // switch to USR mode
+
+
+7.  ret2dl / ret2libc
+
+    // Overwrite .got.plt entry for printf
+    *(uint32_t*)0x21010 = (uint32_t)system;
+    // Later call printf("/bin/sh");
+
+
+8.  TrustZone-M ret2NS (Non-Secure)
+
+    typedef void (*ns_fn)(void) __attribute__((cmse_nonsecure_call));
+    ns_fn jump = (ns_fn)0x00100000;
+    jump();  // switches via SG instruction
+
+
+9.  SMC-ROP (Secure Monitor)
+
+    // Secure payload
+    asm volatile(
+        "mov r0, #0x1234\n\t"
+        "mov r1, #0x5678\n\t"
+        "svc #0"  // SMC
+    );
+    // Monitor handler pops r0-r1, jumps to secure gadget
+
+
+10. Integer-Overflow Gadget (ARM)
+
+    // 0xffffffff + 1 == 0
+    0xe2810001  // add r0, r1, #1
+    0xe3500000  // cmp r0, #0
+    0x1afffffe  // bne loop
+
+11. Memory-Protection Bypass (MPU)
+    - Craft region descriptors to overlap secure & non-secure RAM
+    - Use `MPU_RBAR`/`MPU_RASR` with size=0x20000000 (512 MiB) to cover all.
+
+12. Hardening Countermeasures
+    ┌----------------┬------------------------┐
+    │ Technique      │ Register               │
+    ├----------------┼------------------------┤
+    │ PXN            │ SCTLR.AFE              │
+    │ Stack Canary   │ __stack_chk_guard      │
+    │ ASLR           │ randomize_va_space     │
+    │ CFG            │ Windows ARM (optional) │
+    └----------------┴------------------------┘
+
+13. One-liner Gadget Search
+
+    objdump -d ./libc.so | grep -E 'pop.*pc|bx.*lr' | head -20
+
+14. Quick ASCII Cheat-Sheet
+
+    Gadget            Bytes
+    pop {r0, pc}      0xbd 0x8f 0xe8 0x00
+    mov r0, r1        0x01 0x00 0xa0 0xe1
+    bx lr             0x1e 0xff 0x2f 0xe1
+
+
+15. Exploit Flow Template
+
+    1. Info-leak   → Prime+Probe
+    2. ROP chain   → libc gadget
+    3. Stack pivot → corrupted LR
+    4. ret2usr    → SVC return path
+
