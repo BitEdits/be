@@ -8,7 +8,7 @@
  AArch32 Hacker's Manual
 
  Name: AArch32.txt
- Copiright: (c) 2025 Namdak Tonpa, BitEdits Corporation.
+ Copyright: (c) 2025 Namdak Tonpa, BitEdits Corporation.
  Version: 2025-07-14
  Size: 64KB
 
