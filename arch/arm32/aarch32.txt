@@ -1,20 +1,23 @@
-BitEdits-AArch32-Hacker's-Manual/
-├── 00 meta               # version, changelog, contributors
-├── 10 arch               # ARMv7-A/R + all Cortex-A/R profiles
-├── 20 boot               # Secure/Non-Secure boot flow + bootROM quirks
-├── 30 mmu                # Short-descriptor & LPAE page tables
-├── 40 cache              # PoC for cache side-channels
-├── 50 exceptions         # Vector tables, SMC, FIQ, IRQ abuse
-├── 60 exploits           # ROP/JOP, stack pivot, ret2usr, ret2dl
-
 ================================================================================
-00 META
-================================================================================
+  ____  _ _   _____    _ _ _
+ | __ )(_| |_| ____|__| (_| |_ ___
+ |  _ \| | __|  _| / _` | | __/ __|
+ | |_) | | |_| |__| (_| | | |_\__ \
+ |____/|_|\__|_____\__,_|_|\__|___/
 
-0. Name: AArch32.txt
-1. Copiright (c) 2025 Namdak Tonpa, BitEdits Corporation.
-2. Version: 2025-07-14 [00][10][20]
-3. Size: 64KB
+ AArch32 Hacker's Manual
+
+ Name: AArch32.txt
+ Copiright: (c) 2025 Namdak Tonpa, BitEdits Corporation.
+ Version: 2025-07-14
+ Size: 64KB
+
+ ├── 10 Architecture  # ARMv7-A/R + all Cortex-A/R profiles
+ ├── 20 Boot          # Secure/Non-Secure boot flow + bootROM quirks
+ ├── 30 Memory        # Short-descriptor & LPAE page tables
+ ├── 40 Cache         # PoC for cache side-channels
+ ├── 50 Exceptions    # Vector tables, SMC, FIQ, IRQ abuse
+ ├── 60 Exploits      # ROP/JOP, stack pivot, ret2usr, ret2dl
 
 ================================================================================
 10 ARCHITECTURE (ARMv7-A/M/R, ARMv8-M)
@@ -1244,4 +1247,15 @@ Profile notes
     2. ROP chain   → libc gadget
     3. Stack pivot → corrupted LR
     4. ret2usr    → SVC return path
+
+
+=========================================================================================
+
+┳┓• ┏┓ ┓•
+┣┫┓╋┣ ┏┫┓╋┏
+┻┛┗┗┗┛┗┻┗┗┛
+2025
+
+Максим Сохацький
+
 

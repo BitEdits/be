@@ -1,5 +1,5 @@
 // BE: INFOSEC BINARY HEX EDITOR WITH DASM
-// Synrc Research (c) 2022-2023
+// Synrc Research (c) 2022-2025
 // 5HT DHARMA License
 
 #include <assert.h>
