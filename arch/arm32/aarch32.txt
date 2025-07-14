@@ -9,7 +9,7 @@
 
  Name: AArch32.txt
  Copyright: (c) 2025 Namdak Tonpa, BitEdits Corporation.
- Version: 2025-07-14
+ Version: 2025-07-15
  Size: 64KB
 
  ├── 10 Architecture  # ARMv7-A/R + all Cortex-A/R profiles
@@ -332,20 +332,20 @@ Bit layout (cond always 1110 for unconditional in table below):
 
 [31:28] cond  | [27:25] op1 | [24:20] op2 | [19:16] Rn | [15:12] Rd | [11:0] operand2
 
-  { 0xf0000000, 0xf0000000, arm_unconditional },/* 1111xxxx  (ARMv7 only)       */
-  { 0x0e000010, 0x00000000, arm_dataproc_imsh },/* 00x0xxxx  imm shift, misc    */
-  { 0x0e000090, 0x00000010, arm_dataproc_rxsh },/* 00x1xxxx  reg shift, misc    */
-  { 0x0e000090, 0x00000090, arm_mult_loadstor },/* 00x1xxxx  multiply, extra L/S*/
-  { 0x0e000000, 0x02000000, arm_dataproc_imm }, /* 001xxxx   imm arithmetic     */
-  { 0x0e000000, 0x04000000, arm_loadstor_imm }, /* 010xxxx   LDR/STR imm offset */
-  { 0x0e000010, 0x06000000, arm_loadstor_reg }, /* 0110xxxx  LDR/STR reg offset */
-  { 0x0e000010, 0x06000010, arm_media },        /* 0111xxxx  media (PKH, SXT,…) */
-  { 0x0e000000, 0x08000000, arm_loadstor_mult}, /* 100xxxx   LDM/STM            */
-  { 0x0e000000, 0x0a000000, arm_branch },       /* 101xxxx   B, BL, BLX(imm)    */
-  { 0x0e000000, 0x0c000000, arm_co_loadstor },  /* 110xxxx   coproc LDC/STC     */
+  { 0xf0000000, 0xf0000000, arm_unconditional },/* 1111xxxx  (ARMv7 only)        */
+  { 0x0e000010, 0x00000000, arm_dataproc_imsh },/* 00x0xxxx  imm shift, misc     */
+  { 0x0e000090, 0x00000010, arm_dataproc_rxsh },/* 00x1xxxx  reg shift, misc     */
+  { 0x0e000090, 0x00000090, arm_mult_loadstor },/* 00x1xxxx  multiply, extra L/S */
+  { 0x0e000000, 0x02000000, arm_dataproc_imm }, /* 001xxxx   imm arithmetic      */
+  { 0x0e000000, 0x04000000, arm_loadstor_imm }, /* 010xxxx   LDR/STR imm offset  */
+  { 0x0e000010, 0x06000000, arm_loadstor_reg }, /* 0110xxxx  LDR/STR reg offset  */
+  { 0x0e000010, 0x06000010, arm_media },        /* 0111xxxx  media (PKH, SXT,…)  */
+  { 0x0e000000, 0x08000000, arm_loadstor_mult}, /* 100xxxx   LDM/STM             */
+  { 0x0e000000, 0x0a000000, arm_branch },       /* 101xxxx   B, BL, BLX(imm)     */
+  { 0x0e000000, 0x0c000000, arm_co_loadstor },  /* 110xxxx   coproc LDC/STC      */
   { 0x0f000010, 0x0e000000, arm_co_dataproc },  /* 1110xxxx  coproc CDP          */
   { 0x0f000010, 0x0e000010, arm_co_trans },     /* 1111xxxx  MCR/MRC             */
-  { 0x0f000000, 0x0f000000, arm_softintr },     /* SVC (#imm)                   */
+  { 0x0f000000, 0x0f000000, arm_softintr },     /* SVC (#imm)                    */
 
 Notes
 - Cortex-M has no ARM state; these rows are ignored.
@@ -882,7 +882,6 @@ Profile notes
     #define L2_SIZE 0x00080000  /* 512 KiB */
     mmu_map(L2_BASE, L2_BASE, L2_SIZE, NORMAL_WB);
 
-
 10. Cache Timing Leakage on Cortex-M
     - No L2, no coherency → easier to isolate
     - Use DWT (Data Watchpoint & Trace) counters
@@ -891,7 +890,6 @@ Profile notes
     CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
     DWT->CYCCNT = 0;
     DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
-
 
 11. Defensive Programming Checklist
     [ ] Flush cache before every secret-dependent branch
@@ -906,7 +904,6 @@ Profile notes
     sctlr &= ~(1 << 12);  // I=0
     asm volatile("mcr p15, 0, %0, c1, c0, 0" :: "r"(sctlr));
 
-
 13. Cache-Poisoning via DMA
     - DMA engines bypass caches → stale data
     - Always `clean + invalidate` buffer before/after DMA
@@ -918,7 +915,6 @@ Profile notes
         while (dma_busy());
         invalidate_dcache_range(buf, len);
     }
-
 
 14. Cache Performance Counters
     - Cortex-A7: PMCCNTR, PMEVTYPER0-5
@@ -1038,7 +1034,7 @@ Profile notes
          sp[1] = 0x10;             // CPSR (USR)
 
     8.2  FIQ back-door
-         - Route FIQ to secure handler, set `SCR.FIQ=1` → secure side gets FIQ even in non-secure.  
+         - Route FIQ to secure handler, set `SCR.FIQ=1` → secure side gets FIQ even in non-secure.
          - Use to dump secure RAM or escalate.
 
     8.3  Prefetch-Abort to shellcode
@@ -1081,13 +1077,13 @@ Profile notes
 
 12. Fault Injection via AXI bus (hardware)
 
-    - Drive AxPROT[1]=0 (non-secure) → non-secure abort on secure access  
+    - Drive AxPROT[1]=0 (non-secure) → non-secure abort on secure access
     - Use FPGA AXI master to trigger Bus Fault on Cortex-M
 
 13. Debug & Monitor Mode
 
-    - Monitor mode (ARMv7-A) allows single-stepping exceptions  
-    - `MDSCR.SS` bit + `DBGDSCR` registers  
+    - Monitor mode (ARMv7-A) allows single-stepping exceptions
+    - `MDSCR.SS` bit + `DBGDSCR` registers
     - GDB stub example:
 
     monitor reset halt
@@ -1246,16 +1242,12 @@ Profile notes
     1. Info-leak   → Prime+Probe
     2. ROP chain   → libc gadget
     3. Stack pivot → corrupted LR
-    4. ret2usr    → SVC return path
-
+    4. ret2usr     → SVC return path
 
 =========================================================================================
+Автор: Максим Сохацький (mes@ua.fm)
 
 ┳┓• ┏┓ ┓•
 ┣┫┓╋┣ ┏┫┓╋┏
 ┻┛┗┗┗┛┗┻┗┗┛
-2025
-
-Максим Сохацький
-
-
+2054
