@@ -82,64 +82,28 @@ static const char *special_register(int reg, int mask)
   static char field[16];
 
   switch (reg) {
-  case 0x00:
-    strcpy(field, "APSR");
-    break;
-  case 0x01:
-    strcpy(field, "IAPSR");
-    break;
-  case 0x02:
-    strcpy(field, "EIAPSR");
-    break;
-  case 0x03:
-    strcpy(field, "XPSR");
-    break;
-  case 0x05:
-    strcpy(field, "IPSR");
-    break;
-  case 0x06:
-    strcpy(field, "EPSR");
-    break;
-  case 0x07:
-    strcpy(field, "IEPSR");
-    break;
-  case 0x08:
-    strcpy(field, "MSP");
-    break;
-  case 0x09:
-    strcpy(field, "PSP");
-    break;
-  case 0x10:
-    strcpy(field, "PRIMASK");
-    break;
-  case 0x11:
-    strcpy(field, "BASEPRI");
-    break;
-  case 0x12:
-    strcpy(field, "BASEPRI_MAX");
-    break;
-  case 0x13:
-    strcpy(field, "FAULTMASK");
-    break;
-  case 0x14:
-    strcpy(field, "CONTROL");
-    break;
-  default:
-    assert(0);
-    strcpy(field, "?");
+  case 0x00:    strcpy(field, "APSR");    break;
+  case 0x01:    strcpy(field, "IAPSR");    break;
+  case 0x02:    strcpy(field, "EIAPSR");    break;
+  case 0x03:    strcpy(field, "XPSR");    break;
+  case 0x05:    strcpy(field, "IPSR");    break;
+  case 0x06:    strcpy(field, "EPSR");    break;
+  case 0x07:    strcpy(field, "IEPSR");    break;
+  case 0x08:    strcpy(field, "MSP");    break;
+  case 0x09:    strcpy(field, "PSP");    break;
+  case 0x10:    strcpy(field, "PRIMASK");    break;
+  case 0x11:    strcpy(field, "BASEPRI");    break;
+  case 0x12:    strcpy(field, "BASEPRI_MAX");    break;
+  case 0x13:    strcpy(field, "FAULTMASK");    break;
+  case 0x14:    strcpy(field, "CONTROL");    break;
+  default:    assert(0);    strcpy(field, "?");
   }
 
   if (reg < 5) {
     switch (mask) {
-    case 0x4:
-      strcat(field, "_g");
-      break;
-    case 0x8:
-      strcat(field, "_nzcvq");
-      break;
-    case 0xc:
-      strcat(field, "_nzcvqg");
-      break;
+    case 0x4:      strcat(field, "_g");      break;
+    case 0x8:      strcat(field, "_nzcvq");      break;
+    case 0xc:      strcat(field, "_nzcvqg");      break;
     }
   }
 
@@ -379,21 +343,13 @@ static bool thumb_lsl(ARMSTATE *state, uint32_t instr)
   return thumb_shift(state, instr, "lsl");
 }
 
-static bool thumb_lsr(ARMSTATE *state, uint32_t instr)
-{
-  /* 0000 1xxx xxxx xxxx - shift by immediate, move register */
-  return thumb_shift(state, instr, "lsr");
-}
-
-static bool thumb_asr(ARMSTATE *state, uint32_t instr)
-{
-  /* 0001 0xxx xxxx xxxx - shift by immediate, move register */
-  return thumb_shift(state, instr, "asr");
-}
-
+/* 0000 1xxx xxxx xxxx - shift by immediate, move register */
+static bool thumb_lsr(ARMSTATE *state, uint32_t instr) { return thumb_shift(state, instr, "lsr"); }
+/* 0001 0xxx xxxx xxxx - shift by immediate, move register */
+static bool thumb_asr(ARMSTATE *state, uint32_t instr) { return thumb_shift(state, instr, "asr"); }
+/* 0001 10xx xxxx xxxx - add/subtract register */
 static bool thumb_addsub_reg(ARMSTATE *state, uint32_t instr)
 {
-  /* 0001 10xx xxxx xxxx - add/subtract register */
   if (BIT_SET(instr, 9))
     strcpy(state->text, "sub");
   else
@@ -1094,54 +1050,19 @@ static bool thumb2_regshift_sx(ARMSTATE *state, uint32_t instr)
     int opc = FIELD(instr, 20, 3);
     int rot = FIELD(instr, 4, 2);
     switch (opc) {
-    case 0:
-      if (Rn == 15)
-        strcpy(state->text, "sxth");
-      else
-        strcpy(state->text, "sxtah");
-      break;
-    case 1:
-      if (Rn == 15)
-        strcpy(state->text, "uxth");
-      else
-        strcpy(state->text, "uxtah");
-      break;
-    case 2:
-      if (Rn == 15)
-        strcpy(state->text, "sxtb16");
-      else
-        strcpy(state->text, "sxtab16");
-      break;
-    case 3:
-      if (Rn == 15)
-        strcpy(state->text, "uxtb16");
-      else
-        strcpy(state->text, "uxtab16");
-      break;
-    case 4:
-      if (Rn == 15)
-        strcpy(state->text, "sxtb");
-      else
-        strcpy(state->text, "sxtab");
-      break;
-    case 5:
-      if (Rn == 15)
-        strcpy(state->text, "uxtb");
-      else
-        strcpy(state->text, "uxtab");
-      break;
-    default:
-      return false;
+    case 0: if (Rn == 15) strcpy(state->text, "sxth");   else strcpy(state->text, "sxtah");   break;
+    case 1: if (Rn == 15) strcpy(state->text, "uxth");   else strcpy(state->text, "uxtah");   break;
+    case 2: if (Rn == 15) strcpy(state->text, "sxtb16"); else strcpy(state->text, "sxtab16"); break;
+    case 3: if (Rn == 15) strcpy(state->text, "uxtb16"); else strcpy(state->text, "uxtab16"); break;
+    case 4: if (Rn == 15) strcpy(state->text, "sxtb");   else strcpy(state->text, "sxtab");   break;
+    case 5: if (Rn == 15) strcpy(state->text, "uxtb");   else strcpy(state->text, "uxtab");   break;
+    default: return false;
     }
     add_it_cond(state, 0);
     padinstr(state->text);
-    if (Rn == 15)
-      sprintf(tail(state->text), "%s, %s", register_name(Rd), register_name(Rm));
-    else
-      sprintf(tail(state->text), "%s, %s, %s", register_name(Rd), register_name(Rn),
-              register_name(Rm));
-    if (rot != 0)
-      sprintf(tail(state->text), ", ror #%d", 8 * rot);
+    if (Rn == 15) sprintf(tail(state->text), "%s, %s", register_name(Rd), register_name(Rm));
+    else sprintf(tail(state->text), "%s, %s, %s", register_name(Rd), register_name(Rn), register_name(Rm));
+    if (rot != 0) sprintf(tail(state->text), ", ror #%d", 8 * rot);
   } else {
     /* register-controlled shift */
     if ((instr & 0x00000070) != 0)
@@ -1174,46 +1095,21 @@ static bool thumb2_simd_misc(ARMSTATE *state, uint32_t instr)
   if (BIT_CLR(instr, 7)) {
     /* SIMD add or subtract */
     switch (prefix) {
-    case 0:
-      strcpy(state->text, "s");
-      break;
-    case 1:
-      strcpy(state->text, "q");
-      break;
-    case 2:
-      strcpy(state->text, "sh");
-      break;
-    case 4:
-      strcpy(state->text, "u");
-      break;
-    case 5:
-      strcpy(state->text, "uq");
-      break;
-    case 6:
-      strcpy(state->text, "uh");
-      break;
-    default:
-      return false;
+    case 0:      strcpy(state->text, "s");      break;
+    case 1:      strcpy(state->text, "q");      break;
+    case 2:      strcpy(state->text, "sh");      break;
+    case 4:      strcpy(state->text, "u");      break;
+    case 5:      strcpy(state->text, "uq");      break;
+    case 6:      strcpy(state->text, "uh");      break;
+    default:      return false;
     }
     switch (opc) {
-    case 0:
-      strcat(state->text, "add8");
-      break;
-    case 1:
-      strcat(state->text, "add16");
-      break;
-    case 2:
-      strcat(state->text, "asx");
-      break;
-    case 4:
-      strcat(state->text, "sub8");
-      break;
-    case 5:
-      strcat(state->text, "sub16");
-      break;
-    case 6:
-      strcat(state->text, "sax");
-      break;
+    case 0:      strcat(state->text, "add8");      break;
+    case 1:      strcat(state->text, "add16");      break;
+    case 2:      strcat(state->text, "asx");      break;
+    case 4:      strcat(state->text, "sub8");      break;
+    case 5:      strcat(state->text, "sub16");      break;
+    case 6:      strcat(state->text, "sax");      break;
     default:
       return false;
     }
@@ -1225,51 +1121,22 @@ static bool thumb2_simd_misc(ARMSTATE *state, uint32_t instr)
     /* other three-register data processing */
     opc = (prefix << 4) | opc;  /* make single operation code (as BCD) from op & op2 */
     switch (opc) {
-    case 0x00:
-      strcpy(state->text, "qadd");
-      break;
-    case 0x01:
-      strcpy(state->text, "rev");
-      Rn = -1;  /* Rn should be Rm */
-      break;
-    case 0x02:
-      strcpy(state->text, "sel");
-      break;
-    case 0x03:
-      strcpy(state->text, "clz");
-      Rn = -1;  /* Rn should be Rm */
-      break;
-    case 0x10:
-      strcpy(state->text, "qdadd");
-      break;
-    case 0x11:
-      strcpy(state->text, "rev16");
-      Rn = -1;  /* Rn should be Rm */
-      break;
-    case 0x20:
-      strcpy(state->text, "qsub");
-      break;
-    case 0x21:
-      strcpy(state->text, "rbit");
-      Rn = -1;  /* Rn should be Rm */
-      break;
-    case 0x30:
-      strcpy(state->text, "qdsub");
-      break;
-    case 0x31:
-      strcpy(state->text, "revsh");
-      Rn = -1;  /* Rn should be Rm */
-      break;
-    default:
-      return false;
+    case 0x00:      strcpy(state->text, "qadd");      break;
+    case 0x01:      strcpy(state->text, "rev");      Rn = -1;  /* Rn should be Rm */      break;
+    case 0x02:      strcpy(state->text, "sel");      break;
+    case 0x03:      strcpy(state->text, "clz");      Rn = -1;  /* Rn should be Rm */      break;
+    case 0x10:      strcpy(state->text, "qdadd");      break;
+    case 0x11:      strcpy(state->text, "rev16");      Rn = -1;  /* Rn should be Rm */      break;
+    case 0x20:      strcpy(state->text, "qsub");      break;
+    case 0x21:      strcpy(state->text, "rbit");      Rn = -1;  /* Rn should be Rm */      break;
+    case 0x30:      strcpy(state->text, "qdsub");      break;
+    case 0x31:      strcpy(state->text, "revsh");      Rn = -1;  /* Rn should be Rm */      break;
+    default:      return false;
     }
     add_it_cond(state, 0);
     padinstr(state->text);
-    if (Rn == -1)
-      sprintf(tail(state->text), "%s, %s", register_name(Rd), register_name(Rm));
-    else
-      sprintf(tail(state->text), "%s, %s, %s", register_name(Rd), register_name(Rn),
-              register_name(Rm));
+    if (Rn == -1) sprintf(tail(state->text), "%s, %s", register_name(Rd), register_name(Rm));
+    else sprintf(tail(state->text), "%s, %s, %s", register_name(Rd), register_name(Rn), register_name(Rm));
   }
   state->size = 4;
   return true;
@@ -2642,46 +2509,21 @@ static bool arm_media(ARMSTATE *state, uint32_t instr)
     int opc2 = FIELD(instr, 5, 3);
     int Rn = FIELD(instr, 16, 4);
     switch (opc1) {
-    case 1:
-      strcpy(state->text, "s");
-      break;
-    case 2:
-      strcpy(state->text, "q");
-      break;
-    case 3:
-      strcpy(state->text, "sh");
-      break;
-    case 5:
-      strcpy(state->text, "u");
-      break;
-    case 6:
-      strcpy(state->text, "uq");
-      break;
-    case 7:
-      strcpy(state->text, "uh");
-      break;
+    case 1:      strcpy(state->text, "s");      break;
+    case 2:      strcpy(state->text, "q");      break;
+    case 3:      strcpy(state->text, "sh");      break;
+    case 5:      strcpy(state->text, "u");      break;
+    case 6:      strcpy(state->text, "uq");      break;
+    case 7:      strcpy(state->text, "uh");      break;
     }
     switch (opc2) {
-    case 0:
-      strcat(state->text, "add16");
-      break;
-    case 1:
-      strcat(state->text, "addsubx");
-      break;
-    case 2:
-      strcat(state->text, "subaddx");
-      break;
-    case 3:
-      strcat(state->text, "sub16");
-      break;
-    case 4:
-      strcat(state->text, "add8");
-      break;
-    case 7:
-      strcat(state->text, "sub8");
-      break;
-    default:
-      return false;
+    case 0:      strcat(state->text, "add16");      break;
+    case 1:      strcat(state->text, "addsubx");      break;
+    case 2:      strcat(state->text, "subaddx");      break;
+    case 3:      strcat(state->text, "sub16");      break;
+    case 4:      strcat(state->text, "add8");      break;
+    case 7:      strcat(state->text, "sub8");      break;
+    default:      return false;
     }
     add_condition(state, cond);
     padinstr(state->text);

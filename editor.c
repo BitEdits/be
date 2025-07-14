@@ -288,7 +288,7 @@ void editor_render_header(struct editor* e, struct charbuf* b) {
     char model[] = "";
     char arch[10][8] = { "Unknown\0",
                          "  EM64T\0",
-                             "ARM\0",
+                         "AArch32\0",
                          " RISC-V\0",
                          "PowerPC\0",
                          " SuperH\0",
@@ -296,6 +296,9 @@ void editor_render_header(struct editor* e, struct charbuf* b) {
                          " MIPS64\0",
                          " PDP-11\0",
                          " nVidia\0", };
+
+    if (e->seg_size > 32) strcpy(arch[2], "AArch64\0");
+
     int current_offset =  editor_offset_at_cursor(e);
     unsigned char active_byte = e->contents[current_offset];
     int arch_select = e->arch < 0 ? 0 : (e->arch > 9 ? 0 : e->arch);
