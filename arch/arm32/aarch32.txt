@@ -22,31 +22,144 @@ BitEdits-AArch32-Hacker's-Manual/
 
 0. Applicability
 
-┌────────────────────┬──────────────┬─────────────────────┐
-│ Core               │ ISA          │ Key Features        │
-├────────────────────┼──────────────┼─────────────────────┤
-│ ARM7TDMI           │ ARMv4T       │ No MMU, Jazelle     │
-│ ARM926EJ-S         │ ARMv5TEJ     │ MMU, Jazelle        │
-│ ARM1136J(F)-S      │ ARMv6        │ MMU, SIMD           │
-│ Cortex-A5          │ ARMv7-A      │ NEON, TrustZone     │
-│ Cortex-A7          │ ARMv7-A      │ big.LITTLE, LPAE    │
-│ Cortex-A8          │ ARMv7-A      │ NEON, VFPv3         │
-│ Cortex-A9          │ ARMv7-A      │ SMP, NEON           │
-│ Cortex-A15         │ ARMv7-A      │ VFPv4, Virtualization│
-│ Cortex-R4          │ ARMv7-R      │ MPU, deterministic  │
-│ Cortex-M0/M0+      │ ARMv6-M      │ NVIC, Thumb-2       │
-│ Cortex-M3/M4       │ ARMv7-M      │ NVIC, MPU, FPU      │
-└────────────────────┴──────────────┴─────────────────────┘
+┌------┐
+│ ARM1 │
+└------┘
 
-| Profile | Core       | Process     | Commercial Range   | Reference Frequency      |
-| ------- | ---------- | ----------- | -------------------| ------------------------ |
-| ARMv7-A | Cortex-A7  | 28/40 nm    | 520 MHz – 2.3 GHz  | 1.5 GHz (Raspberry Pi 2) |
-| ARMv7-A | Cortex-A9  | 32 nm       | 600 MHz – 2.0 GHz  | 1.2 GHz (Tegra 3)        |
-| ARMv7-A | Cortex-A15 | 28 nm       | 600 MHz – 2.5 GHz  | 1.7 GHz (Exynos 5420)    |
-| ARMv7-R | Cortex-R4  | 65/40 nm    | 300 MHz – 1 GHz+   | 600 MHz (Infineon AURIX) |
-| ARMv7-M | Cortex-M3  | 90/65 nm    | 24 MHz – 180 MHz   | 72 MHz  (STM32F103)      |
-| ARMv7-M | Cortex-M4  | 90/40 nm    | 24 MHz – 240 MHz   | 168 MHz (STM32F407)      |
-| ARMv7-M | Cortex-M7  | 40/28 nm    | 24 MHz – 600 MHz   | 480 MHz (STM32H743)      |
+Initial Release.
+https://www.righto.com/2015/12/reverse-engineering-arm1-ancestor-of.html
+
+┌------┐
+│ ARM2 │
+└------┘
+
+According to the Dhrystone benchmark, the ARM2 was roughly seven times the performance
+of a typical 7 MHz 68000-based system like the Amiga or Macintosh SE.
+It was twice as fast as an Intel 80386 running at 16 MHz, and about the same
+speed as a multi-processor VAX-11/784 superminicomputer. The only systems that
+beat it were the Sun SPARC and MIPS R2000 RISC-based workstations.
+
+Use:
+
+* Acorn Archimedes
+* Chessmachine
+
+┌------------┐
+│ ARM6/ARMv3 │
+└------------┘
+
+VY86C060    ARM60  1993, 4 GiB, 20 MHz, 25 MHz
+VY86C06020  ARM60  1994, 4 GiB, 20 MHz
+VY86C06040  ARM60  1994, 4 GiB, 40 MHz
+VY86C060A   ARM60  1994, 4 GiB, 33 MHz
+VY86C061    ARM60  1993, 4 GiB, 20 MHz, 25 MHz
+VY86C610    ARM610 1993, 4 GiB, 20 MHz, 25 MHz
+VY86C610C   ARM610 1994, 4 GiB, 33 MHz
+
+Use:
+
+* 3DO Interactive Multiplayer
+* Zarlink GPS приймач
+
+┌------------┐
+│ ARM7/ARMv3 │
+└------------┘
+
+ARM700     40 MHz / 8KB : Acorn Risc PC
+ARM710     40 MHz / 8KB : Acorn Risc PC 700
+ARM710a    40 MHz / 8KB : Apple eMate 300
+ARM7100    18 MHz / 8KB : Psion Series 5
+ARM7500    40 MHz / 4KB : Acorn A7000
+ARM7500FE  56 MHz / 4KB : Acorn A7000+
+
+┌--------------┐
+│ ARM7T/ARMv4T │
+└--------------┘
+
+The ARM7 core family consists of:
+
+1993 ARM700
+1994 ARM710
+1994 ARM7DI
+1994 ARM7TDMI
+1995 ARM710a
+1997 ARM710T     36 MIPS @ 40 MHz   : Psion Series 5mx, Psion Revo/Revo Plus/Diamond Mako
+1997 ARM720T     60 MIPS @ 59.8 MHz : Zipit Wireless Messenger
+1997 ARM740T
+2001 ARM7TDMI-S  15 MIPS @ 16.8 MHz : GBA, Nintendo DS, iPod, Lego NXT
+2001 ARM7EJ-S
+
+Uses:
+
+* Apple eMate 300 – laptop running Newton OS
+* Apple iPod – the first 5 generations of the iPod Classic, Mini, first Nano (ARM7TDMI)
+* iRobot Roomba – robotic vacuum cleaner
+* Lego Mindstorms NXT – 2nd generation robotics toy line from Lego
+* Microsoft Zune HD – portable media player
+* Nintendo Game Boy Advance – handheld video game console
+* Nintendo DS – successor to the Game Boy Advance
+* Nokia 6110 – first GSM phone to use an ARM processor
+* Sega Dreamcast – home video game console (audio coprocessor)
+* Sony PlayStation 2 – home video game console (security handler)
+
+┌-----------------┐
+│ StrongARM/ARMv4 │
+└-----------------┘
+
+SA-110   203 MHz / 16 KB/16 KB, MMU : Apple Newton 2x00 серії, Acorn Risc PC, Rebel/Corel Netwinder, Chalice CATS, Psion Netbook
+SA-1110  233 MHz / 16 KB/16 KB, MMU : LART, Intel Assabet, Ipaq H36x0, Balloon2, Zaurus SL-5x00, HP Jornada 7xx, Jornada 560 series
+
+┌------------┐
+│ ARM8/ARMv4 │
+└------------┘
+
+ARM810  84 MIPS @ 72 MHz / 8 KB cache / MMU
+
+┌------------┐
+│ ARM9/ARMv5 │
+└------------┘
+
+ARM920T     200 MIPS @ 180 MHz / 16 KB/16 KB, MMU : GP32,GP2X, Tapwave Zodiac (Motorola MX1), HP-49/50, Sun SPOT, CL EP9315, Samsung s3c2442 (HTC TyTN, FIC Neo FreeRunner)
+ARM946E-S   : Nintendo DS, Nokia N-Gage, Conexant 802.11 chips
+ARM966E-S   : ST Micro STR91xF
+ARM968E-S   :
+ARM926EJ-S  : Nokia 6630; Sony Ericsson (серії K та W); Siemens та Benq (серії x65 та новіші);
+ARM996HS
+
+┌-------------┐
+│ ARM11/ARMv6 │
+└-------------┘
+
+ARM1136J(F)-S   740 @ 532—665 MHz (i.MX31 SoC), 400—528 MHz : Zune, Nokia E90, N93, N95, N82, N800, N810,
+ARM1156T2(F)-S
+ARM1176JZ(F)-S  : Apple iPhone, Apple iPod touch, Conexant CX2427X, Motorola RIZR Z8, Motorola RIZR Z10
+ARM11MPCore     : Nvidia APX 2500
+
+┌--------------┐
+│ Cortex/ARMv6 │
+└--------------┘
+
+| Profile | Core       | Process     | Commercial Range   | Reference Frequency      | Features          |
+| ------- | ---------- | ----------- | -------------------| ------------------------ |-------------------|
+| ARMv6-M | Cortex-M0  |             |                    |                          | NEON, TrustZone   |
+| ARMv6-M | Cortex-M0+ |             |                    |                          | NEON, TrustZone   |
+| ARMv6-M | Cortex-M1  |             |                    |                          | NEON, TrustZone   |
+
+┌--------------┐
+│ Cortex/ARMv7 │
+└--------------┘
+
+| Profile | Core       | Process     | Commercial Range   | Reference Frequency      | Features           |
+| ------- | ---------- | ----------- | -------------------| ------------------------ |--------------------|
+| ARMv7-A | Cortex-A5  |             |                    |                          | NEON, TrustZone    |
+| ARMv7-A | Cortex-A7  | 28/40 nm    | 520 MHz – 2.3 GHz  | 1.5 GHz (Raspberry Pi 2) | big.LITTLE, LPAE   |
+| ARMv7-A | Cortex-A8  |             |                    |                          | NEON, VFPv3        |
+| ARMv7-A | Cortex-A9  | 32 nm       | 600 MHz – 2.0 GHz  | 1.2 GHz (Tegra 3)        | SMP, NEON          |
+| ARMv7-A | Cortex-A15 | 28 nm       | 600 MHz – 2.5 GHz  | 1.7 GHz (Exynos 5420)    | VFPv4, Virt.       |
+| ARMv7-R | Cortex-R4  | 65/40 nm    | 300 MHz – 1 GHz+   | 600 MHz (Infineon AURIX) | MPU, deterministic |
+| ARMv7-M | Cortex-M3  | 90/65 nm    | 24 MHz – 180 MHz   | 72 MHz  (STM32F103)      | NVIC, MPU, FPU     |
+| ARMv7-M | Cortex-M4  | 90/40 nm    | 24 MHz – 240 MHz   | 168 MHz (STM32F407)      | NVIC, MPU, FPU     |
+| ARMv7-M | Cortex-M7  | 40/28 nm    | 24 MHz – 600 MHz   | 480 MHz (STM32H743)      |                    |
 
 1. Architecture Timeline & Extensions
 
