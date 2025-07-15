@@ -17,7 +17,10 @@
  */
 #include <assert.h>
 #include <ctype.h>
+#if __APPLE__
+#else
 #include <malloc.h>
+#endif
 #include <stdio.h>
 #include <string.h>
 #include "../../editor.h"
@@ -3520,7 +3523,7 @@ char *decodeARM32(long unsigned int start, char *outbuf, int *lendis, long unsig
     struct editor *e = editor();
     disasm_init(&arm, 0);
     disasm_address(&arm, start);
-    disasm_buffer(&arm, start, 4, e->seg_size < 32 ? ARMMODE_THUMB : ARMMODE_ARM, disasm_callback, outbuf);
+    disasm_buffer(&arm, (const uint8_t *)start, 4, e->seg_size < 32 ? ARMMODE_THUMB : ARMMODE_ARM, disasm_callback, outbuf);
     *lendis = arm.size;
     disasm_cleanup(&arm);
 }
