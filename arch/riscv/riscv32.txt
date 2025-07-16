@@ -1,0 +1,32 @@
+#!/bin/sh
+
+# Build RISC-V 32-bit Cross Compiler for Pico 2 (RP2350)
+# Source: https://datasheets.raspberrypi.com/pico/raspberry-pi-pico-c-sdk.pdf
+# 2.10. Supporting both RP2040 and RP2350
+# Pico Series: https://datasheets.raspberrypi.com/pico/getting-started-with-pico.pdf
+
+sudo apt-get install autoconf automake autotools-dev curl python3 \
+   python3-pip libmpc-dev libmpfr-dev libgmp-dev \
+   gawk build-essential bison flex texinfo gperf \
+   libtool patchutils bc zlib1g-dev libexpat-dev \
+   ninja-build git cmake libglib2.0-dev libslirp-dev
+
+sudo mkdir -p /opt/riscv/gcc14-rp2350-no-zcmp
+sudo chown -R $(whoami) /opt/riscv/gcc14-rp2350-no-zcmp
+
+git clone https://github.com/riscv/riscv-gnu-toolchain
+
+cd riscv-gnu-toolchain
+
+git submodule update --init --recursive
+
+git clone https://github.com/gcc-mirror/gcc gcc-14 -b releases/gcc-14
+
+export PATH="$PATH:/opt/riscv/gcc14-rp2350-no-zcmp/bin"
+
+./configure \
+  -prefix=/opt/riscv/gcc14-rp2350-no-zcmp \
+  --with-arch=rv32ima_zicsr_zifencei_zba_zbb_zbs_zbkb_zca_zcb \
+  --with-abi=ilp32 \
+  --with-multilib-generator="rv32ima_zicsr_zifencei_zba_zbb_zbs_zbkb_zca_zcb-ilp32--;rv32imac_zicsr_zifencei_zba_zbb_zbs_zbkb-ilp32--" \
+  --with-gcc-src=`pwd`/gcc-14
