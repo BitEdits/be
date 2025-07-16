@@ -4,6 +4,7 @@
 # Source: https://datasheets.raspberrypi.com/pico/raspberry-pi-pico-c-sdk.pdf
 # 2.10. Supporting both RP2040 and RP2350
 # Pico Series: https://datasheets.raspberrypi.com/pico/getting-started-with-pico.pdf
+# Issue: https://github.com/raspberrypi/pico-examples/issues/670
 
 sudo apt-get install autoconf automake autotools-dev curl python3 \
    python3-pip libmpc-dev libmpfr-dev libgmp-dev \
@@ -35,8 +36,19 @@ cmake -DPICO_BOARD=pico2 -DPICO_PLATFORM=rp2350-riscv \
       -DPICO_RISCV_TOOLCHAIN_PATH=/opt/riscv/gcc14-rp2350-no-zcmp \
       -DPICO_ARM_TOOLCHAIN_PATH=/usr \
       -DCMAKE_C_COMPILER=/opt/riscv/gcc14-rp2350-no-zcmp/bin/riscv32-unknown-elf-gcc \
-      -Dpicotool_DIR=/usr/bin
-      -DCMAKE_CXX_COMPILER=/opt/riscv/gcc14-rp2350-no-zcmp/bin/riscv32-unknown-elf-g++ --trace-expand > cmake_trace.log 2>&1 ..
+      -DPICO_EXAMPLES_PATH:FILEPATH=/home/tonpa/depot/bitedits/pico-examples \
+      -Dpicotool_DIR=/usr/local/bin \
+      -Dpioasm_DIR=/usr/local/bin \
+      -DCMAKE_CXX_COMPILER=/opt/riscv/gcc14-rp2350-no-zcmp/bin/riscv32-unknown-elf-g++ ..
 
 cmake -DPICO_BOARD=pico2 ..
 
+picotool link hello_uni.bin hello_arm32.bin hello_riscv.bin hello_riscv.bin --pad 0x1000
+picotool uf2 convert hello_uni.bin hello_uni.uf2 --family absolute --offset 0x10000000
+
+# hello_arm32.bin
+# hello_arm32.uf2
+# hello_riscv.bin
+# hello_riscv.uf2
+# hello_uni.bin
+# hello_uni.uf2
