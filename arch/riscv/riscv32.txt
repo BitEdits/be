@@ -30,3 +30,13 @@ export PATH="$PATH:/opt/riscv/gcc14-rp2350-no-zcmp/bin"
   --with-abi=ilp32 \
   --with-multilib-generator="rv32ima_zicsr_zifencei_zba_zbb_zbs_zbkb_zca_zcb-ilp32--;rv32imac_zicsr_zifencei_zba_zbb_zbs_zbkb-ilp32--" \
   --with-gcc-src=`pwd`/gcc-14
+
+cmake -DPICO_BOARD=pico2 -DPICO_PLATFORM=rp2350-riscv \
+      -DPICO_RISCV_TOOLCHAIN_PATH=/opt/riscv/gcc14-rp2350-no-zcmp \
+      -DPICO_ARM_TOOLCHAIN_PATH=/usr \
+      -DCMAKE_C_COMPILER=/opt/riscv/gcc14-rp2350-no-zcmp/bin/riscv32-unknown-elf-gcc \
+      -Dpicotool_DIR=/usr/bin
+      -DCMAKE_CXX_COMPILER=/opt/riscv/gcc14-rp2350-no-zcmp/bin/riscv32-unknown-elf-g++ --trace-expand > cmake_trace.log 2>&1 ..
+
+cmake -DPICO_BOARD=pico2 ..
+
