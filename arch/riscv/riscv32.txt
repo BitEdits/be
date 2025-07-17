@@ -36,9 +36,6 @@ cmake -DPICO_BOARD=pico2 -DPICO_PLATFORM=rp2350-riscv \
       -DPICO_RISCV_TOOLCHAIN_PATH=/opt/riscv/gcc14-rp2350-no-zcmp \
       -DPICO_ARM_TOOLCHAIN_PATH=/usr \
       -DCMAKE_C_COMPILER=/opt/riscv/gcc14-rp2350-no-zcmp/bin/riscv32-unknown-elf-gcc \
-      -DPICO_EXAMPLES_PATH:FILEPATH=/home/tonpa/depot/bitedits/pico-examples \
-      -Dpicotool_DIR=/usr/local/bin \
-      -Dpioasm_DIR=/usr/local/bin \
       -DCMAKE_CXX_COMPILER=/opt/riscv/gcc14-rp2350-no-zcmp/bin/riscv32-unknown-elf-g++ ..
 
 cmake -DPICO_BOARD=pico2 ..
